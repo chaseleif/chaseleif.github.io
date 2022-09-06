@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<style>
+div.hcenter {
+	text-align: center;
+}
+div.pagecontent {
+	padding-top: 3%;
+	padding-left: 3%;
+	padding-bottom: 3%;
+}
+</style>
+<style type="text/css">
+  .subsubbr {
+    display: block;
+    margin-bottom: -0.8em;
+  }
+  .subbr {
+    display: block;
+    margin-bottom: -0.5em;
+  }
+</style>
+<head>
+	<meta charset="utf-8">
+	<title>Chase Phelps</title>
+	<meta name="description" content="Setup SSH key for Git">
+	<meta name="author" content="Chase Phelps">
+</head>
+<body bgcolor="#689068">
+<div class="pagecontent">
+
+<h4>In the Git website, go to the account settings</h4>
+<img alt="The settings link is found under the Git profile image" src="images/git_main.png">
+
+<h4>From the account settings, go to the SSH and GPG keys section</h4>
+<img alt="Go to the SSH and GPG keys section" src="images/git_settings.png">
+
+<h4>Select to add an SSH key</h4>
+<img alt="Select to add an SSH key" src="images/git_ssh.png">
+
+<h4>Get your SSH key from Zeus</h4>
+<span class="subsubbr"></span>
+  <ul type="none">
+  <li>Create a key using ssh-keygen if you haven't done so before</li>
+  <li>Press enter to accept the default filename</li>
+  <li>Enter a password, this password will be used for this ssh key</li>
+  <li>Use the cat command to print the generated id_rsa.pub</li>
+  <li>Copy the printed text to your clipboard</li>
+</ul>
+<img alt="Create an RSA key and copy the public key" src="images/zeus_keygen.png">
+
+<h4>Paste the copied id_rsa.pub into the Git website to add it</h4>
+<span class="subsubbr"></span>
+  <ul type="none">
+  <li>Only share the public key, keep the private key private</li>
+  <li>Give the key an appropriate title so you know which key this is</li>
+</ul>
+<img alt="Paste the copied public key into the Git site" src="images/git_addkey.png">
+
+<h4>Copy your repo's SSH clone link</h4>
+<span class="subsubbr"></span>
+  <ul type="none">
+  <li>Now you can use git using the SSH link and your id_rsa key</li>
+  <li>You can clone, push, pull, etc.</li>
+</ul>
+<img alt="Copy the SSH link from the Git site" src="images/git_repolink.png">
+
+<h4>From Zeus, clone your repo, enter your SSH password when prompted</h4>
+<img alt="Clone the repo using the copied link" src="images/zeus_clonerepo.png">
