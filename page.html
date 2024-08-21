@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TITLETEXT</title>
+  <meta name="description" content="DESCRIPTIONTEXT">
+  <meta name="author" content="Chase Phelps">
+  <meta name="viewport" content="initial-scale=1.0,maximum-scale=1.0,user-scalable=yes,width=device-width">
+  <style>
+    figure {
+      border: 1px #a9a9a9 solid;
+      width: fit-content;
+      padding: 12px;
+      margin: auto;
+    }
+    figcaption {
+      background-color: #689068;
+      color: #000000;
+      padding: 2px;
+      text-align: center;
+      font-size: 80%;
+    }
+    .hcenter {
+      text-align: center;
+    }
+    .subbr {
+      display: block;
+      margin-bottom: -0.8em;
+    }
+    .subsubbr {
+      display: block;
+      margin-bottom: -0.5em;
+    }
+    body {
+      overflow-y: scroll;
+      height: 100%;
+    }
+    .page-preview-header {
+      background: #689068;
+      border: none;
+      height: 70px;
+      position: relative;
+      text-align: center;
+    }
+    .page-preview-header > a {
+      display: inline-block;
+      margin-top: 15px;
+      padding: 4px;
+    }
+    .page-preview-header > a:hover {
+      background: #e2f0fc;
+      text-decoration: none;
+    }
+    .page-preview-header > a.active {
+      background: #c9e4f9;
+    }
+    .page-preview-header > .main {
+      margin-right: 0px;
+    }
+    .page-preview-header > .linkedin {
+      margin-left: 0px;
+    }
+    .pagecontent {
+      padding-top: 3%; 
+      padding-left: 3%; 
+      padding-bottom: 3%; 
+    }
+    @media only screen and (orientation: portrait) {
+      body {
+        height: 100%;
+      }
+      .page-preview-header > .main {
+        float: left;
+        margin-left: 5px;
+        margin-top: 5px;
+      }
+      .page-preview-header > .linkedin {
+        float: right;
+        margin-right: 10px;
+        margin-top: 10px;
+      }
+      .page-preview-header > a {
+        display: inline-block;
+        margin-top: 3px;
+        padding: 2px;
+      }
+      figure {
+        border: none;
+        width: fit-content;
+        padding: 0px;
+        margin: auto;
+      }
+    }
+  </style>
+</head>
+<body bgcolor="#689068">
+<div class="page-preview-header">
+  <a class="hidden-sm hidden-xs" href="index.php?aboutme" id="AboutMe" data-preview-size="100%"><img alt="About Me" src="images/avatar75.png">
+  <figcaption>About me</figcaption>
+  </a>
+  <a class="hidden-sm hidden-xs" href="index.php?resume" id="MarkdownResume" data-preview-size="1040px"><img alt="Markdown Resume" src="images/resumeico.png">
+  <figcaption>My resume</figcaption>
+  </a>
+  <a class="hidden-sm hidden-xs" href="index.php?papers" id="ResearchPapers" data-preview-size="1040px"><img alt="Research Papers" src="images/papersico.png">
+  <figcaption>My research</figcaption>
+  </a>
+  <a class="hidden-sm hidden-xs" href="index.php?teaching" id="Teaching" data-preview-size="1040px"><img alt="Teaching" src="images/courses.png">
+  <figcaption>Teaching</figcaption>
+  </a>
+  <a class="hidden-sm hidden-xs" href="index.php?activities" id="Activities" data-preview-size="1040px"><img alt="Activities" src="images/act.png">
+  <figcaption>Activities</figcaption>
+  </a>
+  <a class="main" href="index.php"><img alt="Computer Science" src="images/CSedico.png">
+  <figcaption>Home</figcaption>
+  </a>
+  <a class="linkedin" href="https://www.linkedin.com/in/chaseleif/" id="LinkedIn" data-preview-size="1040px" target="_blank"><img alt="LinkedIn" src="images/LI-In-Bug.png">
+  <figcaption>LinkedIn</figcaption>
+  </a>
+</div>
+<div class="pagecontent">
+  PAGEBODY
+</div>
+</body>
+</html>
