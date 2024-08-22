@@ -32,6 +32,14 @@
     $body .= "Hallo!";
     $body .= "<br><br>";
     $body .= "<figure><img src=\"./images/hallo.jpeg\"></figure>";
+    $body .= "<br><br><br>";
+    $body .= "<a href=\"http://u.fsf.org/16f\" target=\"_blank\">";
+    $body .= "<img src=\"images/gnu.png\" alt=\"Powered by GNU\" ";
+    $body .= "width=\"150\" height=\"150\"></a>";
+    $body .= "&nbsp;&nbsp;";
+    $body .= "<a href=\"http://u.fsf.org/16e\" target=\"_blank\">";
+    $body .= "<img src=\"images/fsf.png\" alt=\"Free Software Foundation\" ";
+    $body .= "width=\"150\" height=\"150\"></a>";
   }
   $page = str_replace("TITLETEXT",$title,$page);
   $page = str_replace("DESCRIPTIONTEXT",$desc,$page);
