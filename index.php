@@ -3,7 +3,7 @@
   if (isset($_GET['aboutme'])) {
     $title = "About Me";
     $desc = "About me";
-    $body = file_get_contents('pages/about.html');
+    $body = file_get_contents('pages/aboutme.html');
   }
   else if (isset($_GET['resume'])) {
     $title = "My Resume";
