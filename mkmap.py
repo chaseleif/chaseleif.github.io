@@ -22,7 +22,8 @@ with open('robots.txt','w') as outfile:
   outfile.write('User-agent: *\n')
   outfile.write('Disallow: /index.php?resume\n')
   outfile.write('Disallow: /images\n')
-  outfile.write('Disallow: /pages\n')
+  outfile.write('Disallow: /pages\n\n')
+  outfile.write(f'Sitemap: {url}/sitemap.xml\n')
 
 with open('sitemap.xml','w') as outfile:
   outfile.write(f'{xmlver}\n')
@@ -45,4 +46,4 @@ with open('sitemap.xml','w') as outfile:
     outfile.write(f'  <loc>{url}/index.php?{page}</loc>\n')
     outfile.write(f'  <lastmod>{ts(f)}</lastmod>\n')
     outfile.write('</url>\n')
-  outfile.write('</urlset>')
+  outfile.write('</urlset>\n')
