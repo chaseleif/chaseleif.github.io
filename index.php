@@ -46,5 +46,6 @@
   $page = str_replace("PAGEBODY",$body,$page);
   $page = preg_replace('/\n+/','',$page);
   $page = preg_replace('/\s+/',' ',$page);
+  $page = preg_replace(s'/>\s+</','><',$page);
   echo $page;
 ?>
