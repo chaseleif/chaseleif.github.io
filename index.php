@@ -26,8 +26,8 @@
     $body = file_get_contents('pages/activities.html');
   }
   else {
-    $title = "";
-    $desc = "";
+    $title = "Chase Phelps";
+    $desc = "Hallo";
     $body = "<h3><div class=\"hcenter\"><br>";
     $body .= "Hallo!";
     $body .= "<br><br>";
