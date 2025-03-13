@@ -14,22 +14,20 @@ plus = int(plus.split(':')[0])*3600
 ts = lambda f: \
   datetime.fromtimestamp(round(os.path.getmtime(f))+plus).isoformat()+'+00:00'
 
-#def ts(f):
-#  ts = datetime.fromtimestamp(round(os.path.getmtime(f))+plus).isoformat()
-#  return ts+'+00:00'
-
 with open('robots.txt','w') as outfile:
   outfile.write('User-agent: *\n')
   outfile.write('Disallow: /index.php?resume\n')
   outfile.write('Disallow: /images\n')
-  outfile.write('Disallow: /pages\n\n')
+  outfile.write('Disallow: /pages\n')
+  outfile.write('Disallow: /resources\n')
+  outfile.write('Disallow: /samples\n\n')
   outfile.write(f'Sitemap: {url}/sitemap.xml\n')
 
 with open('sitemap.xml','w') as outfile:
   outfile.write(f'{xmlver}\n')
   outfile.write(f'{urlset}\n')
-  mod = round(os.path.getmtime('index.php'))
-  if mod >= round(os.path.getmtime('page.html')):
+  modtime = round(os.path.getmtime('index.php'))
+  if modtime >= round(os.path.getmtime('page.html')):
     f = 'index.php'
   else:
     f = 'page.html'
