@@ -35,7 +35,7 @@ module load cray-python/3.11.5
 source venv/bin/activate
 
 # number of nodes
-NNODES=`wc -l < $PBS_NODEFILE`
+NNODES=$(wc -l < $PBS_NODEFILE)
 # number of ranks per node
 NRANKS=16
 # number of hardware threads per rank, i.e., spacing between ranks

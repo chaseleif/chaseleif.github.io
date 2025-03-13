@@ -37,10 +37,13 @@ echo "ip_head = \"$ip_head\""
 ibrun -n 1 -o 0 \
     ray start --head --node-ip-address="$head_node_ip" --port=$port \
     --redis-password="$redis_password" --disable-usage-stats \
-    --num-cpus 1 --block &
+    --num-cpus 1 --block & :
 
 # The number of GPUs could also be specified
 #--num-gpus "${SLURM_GPUS_PER_TASK}"
+
+# The task must be backgrounded with the ampersand
+# I needed to add the nop (semicolon) for the code parsing script
 
 # Allow the head node to complete startup before others attempt to connect
 sleep 10
@@ -53,7 +56,7 @@ worker_num=$((SLURM_JOB_NUM_NODES - 1))
 ibrun -n $worker_num -o 1 \
     ray start --address "$ip_head" \
     --redis-password="$redis_password" --disable-usage-stats \
-    --num-cpus 1 --block &
+    --num-cpus 1 --block & :
 #--num-gpus "${SLURM_GPUS_PER_TASK}"
 
 # Try to ensure everyone is started+connected before we run our task
