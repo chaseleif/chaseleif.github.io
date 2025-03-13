@@ -43,7 +43,7 @@ ibrun -n 1 -o 0 \
 #--num-gpus "${SLURM_GPUS_PER_TASK}"
 
 # The task must be backgrounded with the ampersand
-# I needed to add the nop (semicolon) for the code parsing script
+# I needed to add the nop (colon) for the code parsing script
 
 # Allow the head node to complete startup before others attempt to connect
 sleep 10
