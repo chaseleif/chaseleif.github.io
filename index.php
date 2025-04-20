@@ -99,7 +99,7 @@
         $body .= '</li>';
       }
       $body .= '</ul>';
-      $body .= '<hr width="50%" color="#99A3A4" align="left" />';
+      $body .= '<hr width="50%" color="#008A00" align="left" />';
     }
   }
   else {
@@ -124,6 +124,7 @@
   $page = preg_replace('/\n+/','',$page);
   $page = preg_replace('/\s+/',' ',$page);
   $page = preg_replace('/>\s+</','><',$page);
+  $page = str_replace('a href=','a style="color:#4bb4e6" href=',$page);
   preg_match_all('/:FILE=([^<]+)/', $page, $matches);
   foreach ($matches[1] as $match) {
     $page = str_replace("FILE=$match", code2html($match), $page);
