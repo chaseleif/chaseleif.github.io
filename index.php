@@ -124,7 +124,7 @@
   $page = preg_replace('/\n+/','',$page);
   $page = preg_replace('/\s+/',' ',$page);
   $page = preg_replace('/>\s+</','><',$page);
-  $page = str_replace('a href=','a style="color:#4bb4e6" href=',$page);
+  $page = str_replace('href=','style="color:#4bb4e6" href=',$page);
   preg_match_all('/:FILE=([^<]+)/', $page, $matches);
   foreach ($matches[1] as $match) {
     $page = str_replace("FILE=$match", code2html($match), $page);
