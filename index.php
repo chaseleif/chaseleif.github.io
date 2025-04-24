@@ -29,6 +29,13 @@
     }
   }
   */
+  $page = substr($_SERVER['REQUEST_URI'],1,10);
+  if ($page !== '' && !preg_match('/index\.php\??$/i', $page)) {
+    $root = !empty($_SERVER['HTTPS']) ? 'https' : 'http';
+    $page = $root . '://' . getenv('HTTP_HOST');
+    header("Location: $page", true, 301);
+    exit();
+  }
   require_once 'Phiki/Autoloader.php';
   spl_autoload_register('Phiki\\Autoloader::load');
   function code2html($file) {
@@ -69,6 +76,19 @@
     $desc = 'Teaching';
     $body = file_get_contents('pages/teaching.html');
   }
+  else if (isset($_GET['karaoke']) && is_file("images/faber.mp4")) {
+    $page = file_get_contents('blank.html');
+    $title = 'Faber - In Paris brennen Autos';
+    $desc = 'Karaoke';
+    $body = '<h3><div class="hcenter">';
+    $body .= 'Faber &mdash; In Paris brennen Autos</h3></div>';
+    $body .= '<video controls autoplay ';
+    $body .= 'style="max-width:95%; max-height:80%; ';
+    $body .= 'position:absolute;" ';
+    $body .= 'poster="images/faber.jpg">';
+    $body .= '<source src="images/faber.mp4" type="video/mp4">';
+    $body .= '</video>';
+  }
   else if (isset($_GET['samples'])) {
     $title = 'Samples';
     $desc = 'Samples';
@@ -80,23 +100,25 @@
       $body .= "<h4>$topic[0]</h4>";
       $body .= '<span class="subsubbr"></span>';
       $body .= '<ul type="none">';
-      foreach (scandir("samples/$topic[1]") as $file) {
-        if ($file === '.' || $file === '..') { continue; }
-        if (str_ends_with($file, '.nfo')) { continue; }
-        $name = pathinfo($file)['filename'];
-        $body .= '<li><a href="index.php?samples';
-        if (!isset($_GET[$name])) {
-          $body .= "&$name";
+      if (is_file("samples/$topic[1]")) {
+        foreach (scandir("samples/$topic[1]") as $file) {
+          if ($file === '.' || $file === '..') { continue; }
+          if (str_ends_with($file, '.nfo')) { continue; }
+          $name = pathinfo($file)['filename'];
+          $body .= '<li><a href="index.php?samples';
+          if (!isset($_GET[$name])) {
+            $body .= "&$name";
+          }
+          $body .= "\"><b>$file</b></a>";
+          if (is_file("samples/$topic[1]/$file.nfo")) {
+            $body .= '&nbsp;&mdash;&nbsp;';
+            $body .= file_get_contents("samples/$topic[1]/$file.nfo");
+          }
+          if (isset($_GET[$name])) {
+            $body .= ":FILE=samples/$topic[1]/$file";
+          }
+          $body .= '</li>';
         }
-        $body .= "\"><b>$file</b></a>";
-        if (is_file("samples/$topic[1]/$file.nfo")) {
-          $body .= '&nbsp;&mdash;&nbsp;';
-          $body .= file_get_contents("samples/$topic[1]/$file.nfo");
-        }
-        if (isset($_GET[$name])) {
-          $body .= ":FILE=samples/$topic[1]/$file";
-        }
-        $body .= '</li>';
       }
       $body .= '</ul>';
       $body .= '<hr width="50%" color="#008A00" align="left" />';
@@ -108,7 +130,7 @@
     $body = '<h3><div class="hcenter"><br>';
     $body .= 'Hallo!';
     $body .= '<br><br>';
-    $body .= '<figure><img src="./images/hallo.jpeg"></figure>';
+    $body .= '<figure><img src="images/hallo.jpeg"></figure>';
     $body .= '<br><br><br>';
     $body .= '<a href="http://u.fsf.org/16f" target="_blank">';
     $body .= '<img src="images/gnu.png" alt="Powered by GNU">';
