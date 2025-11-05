@@ -1,0 +1,92 @@
+<script>
+function delete_click(delindex) {
+    const who = document.getElementById("who").value.replace(' ','~');
+    const data = { 'who': who, 'delindex': delindex };
+    fetch('availability.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams(data),
+    })
+    .then(response => response.text())
+    .then(responseText => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(responseText, 'text/html');
+      const newcontent = doc.getElementById('availability');
+      if (newcontent) {
+        document.getElementById('availability').innerHTML
+          = newcontent.innerHTML;
+      }
+      else {
+        console.log("Updated availability not found in response");
+      }
+    })
+    .catch(error => console.error('Error:', error));
+};
+</script>
+<!-- CSS -->
+<link rel="stylesheet" href="/res/date-picker.css" />
+<!-- JS -->
+<script src="/res/date-picker.js" defer></script>
+<!-- shared DOM -->
+<input type="hidden" id="who" value="WHO">
+<div id="picker-backdrop" class="picker-backdrop"></div>
+<div id="date-picker" class="date-picker">
+  <div class="date-picker-header">
+    <div class="days-of-week">
+      <span>M</span><span>T</span><span>W</span>
+      <span>T</span><span>F</span><span>S</span><span>S</span>
+    </div>
+  </div>
+  <div id="date-picker-months" class="date-picker-months"></div>
+</div>
+<div id="time-picker" class="time-picker"></div>
+ERRORMSG
+<div id="availability">AVAILABILITY</div>
+<h4>Add Availability</h4>
+<ht width="50%" color="#008A00" alight="left" />
+<!-- Date Range Picker -->
+<div class="date-range-container">
+  <div
+    class="picker-button"
+    id="availabledate"
+    data-picker-type="date"
+    data-disable-weekends="true"
+    data-days-forward="30"
+    data-days-back="0"
+    data-default-today="true">
+    <span class="picker-value">Date</span>
+  </div>
+  <div
+    class="picker-button"
+    id="availablestart"
+    data-range-group="availabletime"
+    data-range="start"
+    data-picker-type="time"
+    data-time-interval="15"
+    data-start-time="09:00"
+    data-end-time="18:00"
+    data-allow-past-times="false"
+    data-linked-to="availabledate">
+    <span class="picker-value">From</span>
+  </div>
+  <div
+    class="picker-button"
+    id="availableend"
+    data-range-group="availabletime"
+    data-range="end"
+    data-picker-type="time"
+    data-time-interval="15"
+    data-start-time="09:00"
+    data-end-time="18:00"
+    data-allow-past-times="false"
+    data-linked-to="availabledate">
+    <span class="picker-value">To</span>
+  </div>
+</div>
+<br>
+<button class="submit-button" type="button" id="submit-datetime-btn">Submit</button>
+
+<ht width="50%" color="#008A00" alight="left" />
+OTHERAVAIL
