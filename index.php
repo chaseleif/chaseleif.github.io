@@ -1,59 +1,10 @@
 <?php
-  /*
-  session_start();
-  if (!isset($_SESSION["phiki_theme"])) {
-    $_SESSION["phiki_theme"] = "solarized-dark";
-  }
-  $themes = array();
-  foreach (scandir('resources/themes') as $theme) {
-    if (str_ends_with($theme, '.json')) {
-      $themes[] = pathinfo($theme)['filename'];
-    }
-  }
-  foreach ($themes as $theme) {
-    echo "$theme<br>";
-  }
-  $s = 'FILE: arg.sh  FILE: boo.py  FILE: demo.c';
-  $pattern = '/FILE: (?<name>\S+)/';
-  if (preg_match_all($pattern, $s, $matches)) {
-    $parts = array_filter($matches,
-                          fn($key)=>is_string($key), ARRAY_FILTER_USE_KEY);
-    foreach ($parts['name'] as $part) {
-      if (is_file($part)) {
-        echo $part . "<br>";
-        print_r(pathinfo($part));
-        // ['dirname'='.', 'basename'='arg.sh',
-        // 'extension'='sh', 'filename'='arg']
-        echo "<br>";
-      }
-    }
-  }
-  */
   $page = substr($_SERVER['REQUEST_URI'],1,10);
   if ($page !== '' && !preg_match('/index\.php\??$/i', $page)) {
     $root = !empty($_SERVER['HTTPS']) ? 'https' : 'http';
     $page = $root . '://' . getenv('HTTP_HOST');
     header("Location: $page", true, 301);
     exit();
-  }
-  require_once 'Phiki/Autoloader.php';
-  spl_autoload_register('Phiki\\Autoloader::load');
-  function code2html($file) {
-    $text = file_get_contents($file);
-    if ($text === false) return;
-    $text = trim($text);
-    $theme = 'solarized-dark';
-    $code_hl = new Phiki\Phiki();
-    switch (pathinfo($file)['extension']) {
-      case 'c': $lang='c'; break;
-      case 'cpp': $lang='cpp'; break;
-      case 'py': $lang='python'; break;
-      case 'sh': $lang='shellscript'; break;
-      case 'tex': $lang='latex'; break;
-      case 'diff': case 'patch': $lang='diff'; break;
-      default: $lang='txt'; break;
-    }
-    return $code_hl->codeToHTML($text, $lang, $theme);
   }
   $page = file_get_contents('page.html');
   if (isset($_GET['aboutme'])) {
@@ -88,41 +39,6 @@
     $body .= 'poster="images/faber.jpg">';
     $body .= '<source src="images/faber.mp4" type="video/mp4">';
     $body .= '</video>';
-  }
-  else if (isset($_GET['samples'])) {
-    $title = 'Samples';
-    $desc = 'Samples';
-    $body = '';
-    $listing = file_get_contents('samples/listing');
-    preg_match_all('/(.+)=(.+)/', $listing, $listing);
-    foreach ($listing[0] as $topic) {
-      $topic = preg_split('/=/', $topic);
-      $body .= "<h4>$topic[0]</h4>";
-      $body .= '<span class="subsubbr"></span>';
-      $body .= '<ul type="none">';
-      if (is_file("samples/$topic[1]")) {
-        foreach (scandir("samples/$topic[1]") as $file) {
-          if ($file === '.' || $file === '..') { continue; }
-          if (str_ends_with($file, '.nfo')) { continue; }
-          $name = pathinfo($file)['filename'];
-          $body .= '<li><a href="index.php?samples';
-          if (!isset($_GET[$name])) {
-            $body .= "&$name";
-          }
-          $body .= "\"><b>$file</b></a>";
-          if (is_file("samples/$topic[1]/$file.nfo")) {
-            $body .= '&nbsp;&mdash;&nbsp;';
-            $body .= file_get_contents("samples/$topic[1]/$file.nfo");
-          }
-          if (isset($_GET[$name])) {
-            $body .= ":FILE=samples/$topic[1]/$file";
-          }
-          $body .= '</li>';
-        }
-      }
-      $body .= '</ul>';
-      $body .= '<hr width="50%" color="#008A00" align="left" />';
-    }
   }
   else {
     $title = 'Chase Phelps';
