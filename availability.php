@@ -55,13 +55,14 @@
     $body = file_get_contents('pages/setname.html');
   }
   else {
-    $filename = join(DIRECTORY_SEPARATOR, array($event, 'times'));
+    $logfilename = join(DIRECTORY_SEPARATOR, array($event, 'log'));
+    $timefilename = join(DIRECTORY_SEPARATOR, array($event, 'times'));
     $memberid = md5($vars['WHO']);
     $availabilities = [];
     $myavailability = [];
     $otheravailable = [];
-    if (file_exists($filename)) {
-      $file = fopen($filename, 'r');
+    if (file_exists($timefilename)) {
+      $file = fopen($timefilename, 'r');
       $counter = 0;
       $delindex = isset($_POST['delindex']) ? $_POST['delindex'] : -1;
       if ($file) {
@@ -82,7 +83,10 @@
           }
           elseif ($inmember === 1) {
             if (strpos($line, '-') !== false) {
-              if ($counter++ != $delindex) {
+              if ($counter++ == $delindex) {
+                $deleted = $line;
+              }
+              else {
                 array_push($myavailability, $line);
               }
             }
@@ -98,13 +102,7 @@
         fclose($file);
       }
     }
-    if (isset($_POST['from']) && isset($_POST['until'])) {
-      $_POST['from'] /= 1000;
-      $_POST['until'] /= 1000;
-      array_push($myavailability,$_POST['from'] . '-' . $_POST['until']);
-      unset($_POST['from']);
-      unset($_POST['until']);
-    }
+    date_default_timezone_set('America/Chicago');
     function timerange2str($timerange) {
       $timerange = explode('-', $timerange);
       return date('D M j', $timerange[0])
@@ -113,13 +111,35 @@
             . ' and '
             . date('Hi', $timerange[1]);
     }
+    if (isset($deleted)) {
+      $file = fopen($logfilename,'a');
+      if ($file) {
+        $body = '- ' . $vars['WHO'] . ' ' . timerange2str($deleted) . PHP_EOL;
+        fwrite($file, $body);
+        fclose($file);
+      }
+    }
+    elseif (isset($_POST['from']) && isset($_POST['until'])) {
+      $_POST['from'] /= 1000;
+      $_POST['until'] /= 1000;
+      array_push($myavailability,$_POST['from'] . '-' . $_POST['until']);
+      unset($_POST['from']);
+      unset($_POST['until']);
+      $file = fopen($logfilename,'a');
+      if ($file) {
+        $body = '+ ' . $vars['WHO'] . ' '
+              . timerange2str($myavailability[count($myavailability)-1]) . PHP_EOL;
+        fwrite($file, $body);
+        fclose($file);
+      }
+    }
     $hline = '<hr width="50%" color="#008A00" align="left" />';
     $body = '<b>' . $vars['WHO'] . ' availability:</b><br>';
     if (empty($myavailability)) {
       $vars['AVAILABILITY'] = '(None currently set)';
       if ($delindex >= 0) {
-        $availabilities = implode(PHP_EOL, $availabilities) . PHP_EOL;
-        file_put_contents($filename, $availabilities);
+        file_put_contents($timefilename,
+                          implode(PHP_EOL, $availabilities) . PHP_EOL);
       }
     }
     else {
@@ -141,8 +161,7 @@
       }
       array_push($availabilities, $memberid);
       $availabilities = array_merge($availabilities, $myavailability);
-      file_put_contents($filename, implode(PHP_EOL, $availabilities) . PHP_EOL);
-      date_default_timezone_set('America/Chicago');
+      file_put_contents($timefilename, implode(PHP_EOL, $availabilities) . PHP_EOL);
       $vars['AVAILABILITY'] = '<ul type="circle">';
       $counter = 0;
       $deletebutton = '<button class="delete-button" '
