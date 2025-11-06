@@ -3,19 +3,34 @@
     foreach ($vars as $key => $value) {
       $body = str_replace($key, $value, $body);
     }
-    $body = str_replace('ERRORMSG', '', $body);
     return $body;
   }
   $vars = [];
-  if (isset($_POST['firstname']) && isset($_POST['lastname'])) {
-    $who = strtolower($_POST['firstname'])
-          . '~' . strtolower($_POST['lastname']);
+  $vars['ERRORMSG'] = '';
+  if (isset($_POST['eventname'])) {
+    $event = strtolower($_POST['eventname']);
+    if (is_dir($event)) {
+      $members = join(DIRECTORY_SEPARATOR, array($event, 'members'));
+      if (!is_file($members)) {
+        $vars['ERRORMSG'] .= 'What';
+      }
+    }
+    else {
+      $vars['ERRORMSG'] .= 'What';
+    }
   }
-  else if (isset($_POST['who'])) {
-    $who = strtolower($_POST['who']);
+  if (!empty($vars['ERRORMSG'])) {
+    unset($event);
+    unset($members);
   }
-  else if (isset($_GET['who'])) {
-    $who = strtolower($_GET['who']);
+  if (isset($event)) {
+    if (isset($_POST['firstname']) && isset($_POST['lastname'])) {
+      $who = strtolower($_POST['firstname'])
+            . '~' . strtolower($_POST['lastname']);
+    }
+    else if (isset($_POST['who'])) {
+      $who = strtolower($_POST['who']);
+    }
   }
   if (isset($who)) {
     if (substr_count($who, '~') !== 1) {
@@ -23,24 +38,24 @@
     }
     else {
       $who = ucwords(str_replace('~', ' ', $who), ' ');
-      $members = file('members', FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES);
+      $members = file($members, FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES);
       if (!in_array($who, $members)) {
         $vars['ERRORMSG'] = $who;
       }
     }
-    if (isset($vars['ERRORMSG'])) {
-      $vars['ERRORMSG'] = '<h3>' . $vars['ERRORMSG'] . ' ?</h3>';
-    }
-    else {
+    if (empty($vars['ERRORMSG'])) {
       $vars['WHO'] = $who;
+      $vars['EVENTNAME'] = $event;
     }
-    unset($who);
+  }
+  if (!empty($vars['ERRORMSG'])) {
+    $vars['ERRORMSG'] = '<h3>' . $vars['ERRORMSG'] . ' ?</h3>';
   }
   if (!isset($vars['WHO'])) {
     $body = file_get_contents('pages/setname.html');
   }
   else {
-    $filename = 'times';
+    $filename = join(DIRECTORY_SEPARATOR, array($event, 'times'));
     $memberid = md5($vars['WHO']);
     $availabilities = [];
     $myavailability = [];
@@ -94,9 +109,9 @@
       $timerange = explode('-', $timerange);
       return date('D M j', $timerange[0])
             . ', between '
-            . date('H:i', $timerange[0])
+            . date('Hi', $timerange[0])
             . ' and '
-            . date('H:i', $timerange[1]);
+            . date('Hi', $timerange[1]);
     }
     $body = '<b>Current availability for ' . $vars['WHO'] . ':</b><br><br>';
     if (empty($myavailability)) {

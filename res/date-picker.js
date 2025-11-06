@@ -1,5 +1,6 @@
 document.getElementById("submit-datetime-btn").addEventListener("click", () => {
     const who = document.getElementById("who").value.replace(' ','~');
+    const eventname = document.getElementById("eventname").value;
     
     const dateBtn = document.getElementById("availabledate");
     const stimeBtn = document.getElementById("availablestart");
@@ -30,7 +31,12 @@ document.getElementById("submit-datetime-btn").addEventListener("click", () => {
     const from = Date.parse(fromhr);
     const until = Date.parse(untilhr);
 
-    const data = { 'who': who, 'from': from, 'until': until };
+    const data = {
+      'who': who,
+      'eventname' : eventname,
+      'from': from,
+      'until': until
+    };
     fetch('availability.php', {
       method: 'POST',
       headers: {

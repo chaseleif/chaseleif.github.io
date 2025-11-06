@@ -1,7 +1,8 @@
 <script>
 function delete_click(delindex) {
     const who = document.getElementById("who").value.replace(' ','~');
-    const data = { 'who': who, 'delindex': delindex };
+    const eventname = document.getElementById("eventname").value;
+    const data = { 'who': who, 'eventname': eventname, 'delindex': delindex };
     fetch('availability.php', {
       method: 'POST',
       headers: {
@@ -31,6 +32,7 @@ function delete_click(delindex) {
 <script src="/res/date-picker.js" defer></script>
 <!-- shared DOM -->
 <input type="hidden" id="who" value="WHO">
+<input type="hidden" id="eventname" value="EVENTNAME">
 <div id="picker-backdrop" class="picker-backdrop"></div>
 <div id="date-picker" class="date-picker">
   <div class="date-picker-header">
