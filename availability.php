@@ -114,7 +114,7 @@
             . date('Hi', $timerange[1]);
     }
     $hline = '<hr width="50%" color="#008A00" align="left" />';
-    $body = '<b>Current availability of ' . $vars['WHO'] . ':</b><br>';
+    $body = '<b>' . $vars['WHO'] . ' availability:</b><br>';
     if (empty($myavailability)) {
       $vars['AVAILABILITY'] = '(None currently set)';
       if ($delindex >= 0) {
