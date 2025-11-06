@@ -113,7 +113,8 @@
             . ' and '
             . date('Hi', $timerange[1]);
     }
-    $body = '<b>Current availability for ' . $vars['WHO'] . ':</b><br><br>';
+    $hline = '<hr width="50%" color="#008A00" align="left" />';
+    $body = '<b>Current availability of ' . $vars['WHO'] . ':</b><br>';
     if (empty($myavailability)) {
       $vars['AVAILABILITY'] = '(None currently set)';
       if ($delindex >= 0) {
@@ -164,14 +165,11 @@
         if (strcmp($timerange, $memberid) === 0) {
           break;
         }
-        if (empty($vars['OTHERAVAIL'])) {
-          $vars['OTHERAVAIL'] = '<br><br>';
+        if (!empty($vars['OTHERAVAIL'])) {
+          $vars['OTHERAVAIL'] .= '</ul>' . $hline;
         }
-        else {
-          $vars['OTHERAVAIL'] .= '</ul>';
-        }
-        $vars['OTHERAVAIL'] .= '<br><br><b>Availability for other member:</b>'
-                            . '<br><br><ul type="circle">';
+        $vars['OTHERAVAIL'] .= '<h4>Availability of another member:</h4>'
+                            . '<ul type="circle">';
       }
       else {
         $vars['OTHERAVAIL'] .= '<li>'
@@ -180,7 +178,7 @@
       }
     }
     if (!empty($vars['OTHERAVAIL'])) {
-      $vars['OTHERAVAIL'] .= '</ul>';
+      $vars['OTHERAVAIL'] .= '</ul>' . $hline;
     }
     $body .= file_get_contents('pages/settimes.html');
   }
