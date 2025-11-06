@@ -347,13 +347,7 @@ function initialiseDateRange(btn) {
 
         // Render leading blank slots for weekday alignment
         const firstDow = monthStart.getDay();
-        let blankCount;
-        if (firstDow === 0) {
-            blankCount = 6;
-        } else {
-            blankCount = firstDow - 1;
-        }
-        for (let i = 0; i < blankCount; i++) {
+        for (let i = 0; i < firstDow; i++) {
             monthEl.appendChild(blank());
         }
 
@@ -376,7 +370,7 @@ function initialiseDateRange(btn) {
             // Disable weekends if requested
             if (btn.dataset.disableWeekends === 'true') {
                 const dow = dayDate.getDay();
-                if (dow === 5 || dow === 6) {
+                if (dow === 0 || dow === 6) {
                     isDisabled = true;
                 }
             }
@@ -401,7 +395,7 @@ function initialiseDateRange(btn) {
 
             // Highlight today and optionally disable it
             if (dayDate.getTime() === now.getTime()) {
-                span.classList.add('today-outline');
+                //span.classList.add('today-outline');
                 if (btn.dataset.allowToday === 'false') {
                     isDisabled = true;
                 }
