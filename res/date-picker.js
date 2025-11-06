@@ -1,4 +1,3 @@
-
 document.getElementById("submit-datetime-btn").addEventListener("click", () => {
     const who = document.getElementById("who").value.replace(' ','~');
     
@@ -371,7 +370,7 @@ function initialiseDateRange(btn) {
             // Disable weekends if requested
             if (btn.dataset.disableWeekends === 'true') {
                 const dow = dayDate.getDay();
-                if (dow === 0 || dow === 6) {
+                if (dow === 5 || dow === 6) {
                     isDisabled = true;
                 }
             }
