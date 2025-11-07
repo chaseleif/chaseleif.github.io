@@ -1,4 +1,7 @@
 <?php
+  function h3text($text) {
+    return '<h3>' . $text . '</h3>';
+  }
   function setvars($vars, $body) {
     foreach ($vars as $key => $value) {
       $body = str_replace($key, $value, $body);
@@ -9,19 +12,12 @@
   $vars['ERRORMSG'] = '';
   if (isset($_POST['eventname'])) {
     $event = strtolower($_POST['eventname']);
-    if (is_dir($event)) {
-      $members = join(DIRECTORY_SEPARATOR, array($event, 'members'));
-      if (!is_file($members)) {
-        $vars['ERRORMSG'] .= 'What';
-      }
+    $members = join(DIRECTORY_SEPARATOR, array($event, 'members'));
+    if (!is_dir($event) || !is_file($members)) {
+      $vars['ERRORMSG'] = h3text('What ?');
+      unset($event);
+      unset($members);
     }
-    else {
-      $vars['ERRORMSG'] .= 'What';
-    }
-  }
-  if (!empty($vars['ERRORMSG'])) {
-    unset($event);
-    unset($members);
   }
   if (isset($event)) {
     if (isset($_POST['firstname']) && isset($_POST['lastname'])) {
@@ -29,27 +25,24 @@
             . '~' . strtolower($_POST['lastname']);
     }
     else if (isset($_POST['who'])) {
-      $who = strtolower($_POST['who']);
+      $who = $_POST['who'];
     }
   }
   if (isset($who)) {
     if (substr_count($who, '~') !== 1) {
-      $vars['ERRORMSG'] = 'Who';
+      $vars['ERRORMSG'] = h3text('Who ?');
     }
     else {
       $who = ucwords(str_replace('~', ' ', $who), ' ');
       $members = file($members, FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES);
       if (!in_array($who, $members)) {
-        $vars['ERRORMSG'] = $who;
+        $vars['ERRORMSG'] = h3text("$who ?");
       }
     }
     if (empty($vars['ERRORMSG'])) {
       $vars['WHO'] = $who;
       $vars['EVENTNAME'] = $event;
     }
-  }
-  if (!empty($vars['ERRORMSG'])) {
-    $vars['ERRORMSG'] = '<h3>' . $vars['ERRORMSG'] . ' ?</h3>';
   }
   if (!isset($vars['WHO'])) {
     $body = file_get_contents('pages/setname.html');
@@ -60,7 +53,6 @@
     $memberid = md5($vars['WHO']);
     $availabilities = [];
     $myavailability = [];
-    $otheravailable = [];
     if (file_exists($timefilename)) {
       $file = fopen($timefilename, 'r');
       $counter = 0;
@@ -71,15 +63,13 @@
           $line = rtrim($line);
           if (empty($line)) { }
           elseif ($inmember === 0) {
-            if (strpos($line, '-') !== false) {
+            if (strpos($line, '-') !== false
+                || strcmp($line, $memberid) !== 0) {
               array_push($availabilities, $line);
-              continue;
             }
-            if (strcmp($line, $memberid) !== 0) {
-              array_push($availabilities, $line);
-              continue;
+            else {
+              $inmember = 1;
             }
-            $inmember = 1;
           }
           elseif ($inmember === 1) {
             if (strpos($line, '-') !== false) {
@@ -122,13 +112,13 @@
     elseif (isset($_POST['from']) && isset($_POST['until'])) {
       $_POST['from'] /= 1000;
       $_POST['until'] /= 1000;
-      array_push($myavailability,$_POST['from'] . '-' . $_POST['until']);
-      unset($_POST['from']);
-      unset($_POST['until']);
+      $newrange = $_POST['from'] . '-' . $_POST['until'];
+      array_push($myavailability, $newrange);
       $file = fopen($logfilename,'a');
       if ($file) {
         $body = '+ ' . $vars['WHO'] . ' '
-              . timerange2str($myavailability[count($myavailability)-1]) . PHP_EOL;
+              . timerange2str($myavailability[count($myavailability)-1])
+              . PHP_EOL;
         fwrite($file, $body);
         fclose($file);
       }
@@ -144,7 +134,7 @@
     }
     else {
       sort($myavailability);
-      if (count($myavailability) > 1) {
+      if (isset($newrange) && count($myavailability) > 1) {
         $deloverlap = array($myavailability[0]);
         for ($i=1; $i<count($myavailability); ++$i) {
           $left = explode('-', $deloverlap[count($deloverlap)-1]);
