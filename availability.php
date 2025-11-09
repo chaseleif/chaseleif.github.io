@@ -21,8 +21,8 @@
       }
       $hashes = array_map('md5', $this->names);
       $this->times = [];
-      if (file_exists($this->timefile) {
-        $file = fopen($this->timefile);
+      if (file_exists($this->timefile)) {
+        $file = fopen($this->timefile, 'r');
         if ($file) {
           $name = '';
           while (($line = fgets($file)) !== false) {
@@ -53,7 +53,7 @@
     }
     public function nexttimestr($name) {
       foreach ($this->times[$name] as $time) {
-        yield this->time2str($time);
+        yield $this->time2str($time);
       }
     }
     public function nextname() {
@@ -62,20 +62,31 @@
       }
     }
     public function dumptimes() {
-      file_put_contents($this->timefile,
-                        implode(PHP_EOL, $this->times . PHP_EOL));
+      $file = fopen($this->timefile, 'w');
+      if ($file) {
+        foreach ($this->times as $name => $times) {
+          fwrite($file, md5($name) . PHP_EOL);
+          foreach($times as $time) {
+            fwrite($file, $time . PHP_EOL);
+          }
+        }
+        fclose($file);
+      }
     }
     public function loaded() {
-      return (!empty(this->names));
+      return (!empty($this->names));
     }
     public function addtime($name, $time) {
+      if (!array_key_exists($name, $this->times)) {
+        $this->times[$name] = [];
+      }
       array_push($this->times[$name], $time);
       $file = fopen($this->logfile, 'a');
       if ($file) {
         fwrite($file, '+ '
                       . $name
                       . ' '
-                      . this->time2str($time)
+                      . $this->time2str($time)
                       . PHP_EOL);
         fclose($file);
       }
@@ -94,22 +105,13 @@
         }
         $this->times[$name] = $times;
       }
-      $file = fopen($this->timefile, 'w');
-      if ($file) {
-        foreach ($this->times as $name => $times) {
-          fwrite($file, md5($name) . PHP_EOL);
-          foreach($times as $time) {
-            fwrite($file, $time . PHP_EOL);
-          }
-        }
-        fclose($file);
-      }
+      $this->dumptimes();
     }
     public function removetime($name, $timeindex) {
       $line = '- '
             . $name
             . ' '
-            . this->time2str($this->times[$name][$timeindex])
+            . $this->time2str($this->times[$name][$timeindex])
             . PHP_EOL;
       unset($this->times[$name][$timeindex]);
       if (empty($this->times[$name])) {
@@ -117,11 +119,10 @@
       }
       $file = fopen($this->logfile, 'a');
       if ($file) {
-        fwrite($line);
+        fwrite($file, $line);
         fclose($file);
       }
-      file_put_contents($this->timefile,
-                        implode(PHP_EOL, $this->times) . PHP_EOL);
+      $this->dumptimes();
     }
   }
   date_default_timezone_set('America/Chicago');
@@ -140,7 +141,7 @@
   $vars = [];
   $vars['ERRORMSG'] = '';
   if (isset($_POST['eventname'])) {
-    $eventdata = EventData(strtolower($_POST['eventname']));
+    $eventdata = new EventData(strtolower($_POST['eventname']));
     if (!$eventdata->loaded()) {
       $vars['ERRORMSG'] = h3text('What ?');
       unset($eventdata);
@@ -175,7 +176,7 @@
   if (!isset($who)) {
     $body = file_get_contents('pages/setname.html');
   }
-  elseif (strcmp($event, $secretevent) === 0) {
+  elseif (strcmp($eventdata->event, $secretevent) === 0) {
     $events = [];
     foreach (glob('*', GLOB_ONLYDIR) as $event) {
       if (is_file(join(DIRECTORY_SEPARATOR, array($event, 'members')))) {
