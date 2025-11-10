@@ -81,6 +81,9 @@
         yield $name;
       }
     }
+    public function ready() {
+      return is_file($this->namefile);
+    }
     public function loaded() {
       return (!empty($this->names));
     }
@@ -188,7 +191,7 @@
       unset($who);
     }
   }
-  $secretevent = '1234567';
+  $secretevent = '12345678';
   if (!isset($who)) {
     $body = file_get_contents('pages/setname.html');
   }
@@ -238,7 +241,7 @@
     $eventnum = 0;
     $vars['EVENTLIST'] = '';
     foreach (glob('*', GLOB_ONLYDIR) as $event) {
-      if (strcmp($event, $secretevent) === 0) {
+      if (strcmp($event, $secretevent) === 0 || !$eventdata->ready()) {
         continue;
       }
       $namenum = 0;
