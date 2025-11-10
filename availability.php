@@ -88,9 +88,6 @@
       return (!empty($this->names));
     }
     public function addtime($name, $time) {
-      if (!array_key_exists($name, $this->times)) {
-        $this->times[$name] = [];
-      }
       $file = fopen($this->logfile, 'a');
       if ($file) {
         fwrite($file, '+ '
@@ -101,6 +98,9 @@
         fclose($file);
       }
       $this->loadtimes();
+      if (!array_key_exists($name, $this->times)) {
+        $this->times[$name] = [];
+      }
       array_push($this->times[$name], $time);
       if (count($this->times[$name]) > 1) {
         sort($this->times[$name]);
@@ -136,6 +136,16 @@
         unset($this->times[$name]);
       }
       $this->dumptimes();
+    }
+    public function removename($index) {
+      $this->loadtimes();
+      $name = $this->names[$index];
+      if (array_key_exists($name, $this->times)) {
+        unset($this->times[$name]);
+        $this->dumptimes();
+      }
+      unset($this->names[$index]);
+      $this->dumpnames();
     }
   }
   date_default_timezone_set('America/Chicago');
@@ -209,13 +219,19 @@
       }
       elseif (strcmp($_POST['del'], 'name') === 0) {
         $eventdata = new EventData($_POST['delevent']);
-        unset($eventdata->names[$_POST['index']]);
-        $eventdata->dumpnames();
+        $eventdata->removename($_POST['index']);
       }
       elseif (strcmp($_POST['del'], 'time') === 0) {
         $eventdata = new EventData($_POST['delevent']);
-        unset($eventdata->times[$_POST['delname']][$_POST['index']]);
-        $eventdata->dumptimes();
+        $eventdata->removetime($_POST['delname'], $_POST['index']);
+      }
+    }
+    elseif (isset($_POST['newevent'])) {
+      if (!ctype_alnum($_POST['newevent'])) {
+        $vars['ERRORMSG'] = h3text('Event name must be alphanumeric');
+      }
+      elseif (!file_exists($_POST['newevent'])) {
+        mkdir($_POST['newevent'], 0700);
       }
     }
     function delbutton(...$args) {
@@ -223,41 +239,44 @@
               . 'type="button" id="del-thing-btn" '
               . 'onclick="del_thing(';
       // which
-      $button .= "\"$args[0]\"";
+      $button .= "'$args[0]'";
       // index
       $button .= ", $args[1]";
+      // event only needs which and index, others need eventname
       if (strcmp($args[0], "event") !== 0) {
         // eventname
-        $button .= ", \"$args[2]\"";
-        if (strcmp($args[0], "name") === 0) {
+        $button .= ", '$args[2]'";
+        // name only needs which, index, and eventname
+        if (strcmp($args[0], "name") !== 0) {
           // name
-          $button .= ", \"$args[3]\"";
+          $button .= ", '$args[3]'";
         }
       }
-      $button .= ')>×</button>';
-      return $button;
+      $button .= ')">×</button>';
+      return $button . PHP_EOL;
     }
-    $hline = '<hr width="50%" color="#008A00" align="left" />';
+    $hline = '<hr width="50%" color="#008A00" align="left" />' . PHP_EOL;
     $eventnum = 0;
     $vars['EVENTLIST'] = '';
     foreach (glob('*', GLOB_ONLYDIR) as $event) {
+      $eventdata = new EventData($event);
       if (strcmp($event, $secretevent) === 0 || !$eventdata->ready()) {
         continue;
       }
       $namenum = 0;
-      $eventdata = new EventData($event);
       $vars['EVENTLIST'] .= h4text($event . ':')
+                          . PHP_EOL
                           . delbutton('event',
                                       $eventnum++)
                           . '<ul type="none">';
       foreach ($eventdata->nextname() as $name) {
         $timenum = 0;
-        $vars['EVENTLIST'] .= '<li>' . $name
+        $vars['EVENTLIST'] .= '<li>' . $name . PHP_EOL
                             . delbutton('name',
                                         $namenum++, $event)
                             . '<ul type="circle">';
         if (!$eventdata->havetime($name)) {
-          $vars['EVENTLIST'] .= '<li>(None currently set)</li>';
+          $vars['EVENTLIST'] .= '<li>(None currently set)</li>' . PHP_EOL;
         }
         else {
           foreach ($eventdata->nexttimestr($name) as $timestr) {
@@ -265,7 +284,7 @@
                                 . $timestr
                                 . delbutton('time',
                                             $timenum++, $event, $name)
-                                .'</li>';
+                                .'</li>' . PHP_EOL;
           }
         }
         $vars['EVENTLIST'] .= '</ul>';
