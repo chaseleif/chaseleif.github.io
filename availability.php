@@ -15,12 +15,28 @@
         $this->names =
             file($this->namefile,
                 FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES);
+        sort($this->names);
       }
       else {
         $this->names = [];
       }
-      $hashes = array_map('md5', $this->names);
+      $this->loadtimes();
+    }
+    private function dumptimes() {
+      $file = fopen($this->timefile, 'w');
+      if ($file) {
+        foreach ($this->times as $name => $times) {
+          fwrite($file, md5($name) . PHP_EOL);
+          foreach($times as $time) {
+            fwrite($file, $time . PHP_EOL);
+          }
+        }
+        fclose($file);
+      }
+    }
+    private function loadtimes() {
       $this->times = [];
+      $hashes = array_map('md5', $this->names);
       if (file_exists($this->timefile)) {
         $file = fopen($this->timefile, 'r');
         if ($file) {
@@ -61,18 +77,6 @@
         yield $name;
       }
     }
-    public function dumptimes() {
-      $file = fopen($this->timefile, 'w');
-      if ($file) {
-        foreach ($this->times as $name => $times) {
-          fwrite($file, md5($name) . PHP_EOL);
-          foreach($times as $time) {
-            fwrite($file, $time . PHP_EOL);
-          }
-        }
-        fclose($file);
-      }
-    }
     public function loaded() {
       return (!empty($this->names));
     }
@@ -80,7 +84,6 @@
       if (!array_key_exists($name, $this->times)) {
         $this->times[$name] = [];
       }
-      array_push($this->times[$name], $time);
       $file = fopen($this->logfile, 'a');
       if ($file) {
         fwrite($file, '+ '
@@ -90,6 +93,8 @@
                       . PHP_EOL);
         fclose($file);
       }
+      $this->loadtimes();
+      array_push($this->times[$name], $time);
       if (count($this->times[$name]) > 1) {
         sort($this->times[$name]);
         $times = array($this->times[$name][0]);
@@ -113,14 +118,15 @@
             . ' '
             . $this->time2str($this->times[$name][$timeindex])
             . PHP_EOL;
-      unset($this->times[$name][$timeindex]);
-      if (empty($this->times[$name])) {
-        unset($this->times[$name]);
-      }
       $file = fopen($this->logfile, 'a');
       if ($file) {
         fwrite($file, $line);
         fclose($file);
+      }
+      $this->loadtimes();
+      unset($this->times[$name][$timeindex]);
+      if (empty($this->times[$name])) {
+        unset($this->times[$name]);
       }
       $this->dumptimes();
     }
@@ -132,18 +138,12 @@
   function h4text($text) {
     return '<h4>' . $text . '</h4>';
   }
-  function setvars($vars, $body) {
-    foreach ($vars as $key => $value) {
-      $body = str_replace($key, $value, $body);
-    }
-    return $body;
-  }
   $vars = [];
   $vars['ERRORMSG'] = '';
   if (isset($_POST['eventname'])) {
     $eventdata = new EventData(strtolower($_POST['eventname']));
     if (!$eventdata->loaded()) {
-      $vars['ERRORMSG'] = h3text('What ?');
+      $vars['ERRORMSG'] = h3text('No ?');
       unset($eventdata);
     }
   }
@@ -156,12 +156,12 @@
   }
   if (isset($who) && isset($eventdata)) {
     if (substr_count($who, '~') !== 1) {
-      $vars['ERRORMSG'] = h3text('Who ?');
+      $vars['ERRORMSG'] = h3text('No ?');
     }
     else {
       $who = ucwords(str_replace('~', ' ', $who), ' ');
       if (!in_array($who, $eventdata->names)) {
-        $vars['ERRORMSG'] = h3text("$who ?");
+        $vars['ERRORMSG'] = h3text('No ?');
       }
     }
     if (empty($vars['ERRORMSG'])) {
@@ -172,15 +172,43 @@
       unset($who);
     }
   }
-  $secretevent = 'some secret event';
+  $secretevent = '1234567';
   if (!isset($who)) {
     $body = file_get_contents('pages/setname.html');
   }
   elseif (strcmp($eventdata->event, $secretevent) === 0) {
-    $events = [];
+    $counter = 0;
+    $deletebutton = '<button class="delete-button" '
+                  . 'type="button" id="delete-event-btn" '
+                  . 'onclick="delete_click(NUM)">'
+                  . '×'
+                  . '</button>';
+    $hline = '<hr width="50%" color="#008A00" align="left" />';
+    $vars['EVENTLIST'] = '';
     foreach (glob('*', GLOB_ONLYDIR) as $event) {
-      if (is_file(join(DIRECTORY_SEPARATOR, array($event, 'members')))) {
-        array_push($events, $event);
+      if (strcmp($event, $secretevent) === 0) { }
+      elseif (is_file(join(DIRECTORY_SEPARATOR, array($event, 'names')))) {
+        $eventdata = new EventData($event);
+        $vars['EVENTLIST'] .= h4text($event . ':')
+                            . '<ul type="none">';
+        foreach ($eventdata->nextname() as $name) {
+          $vars['EVENTLIST'] .= '<li>' . $name;
+          $vars['EVENTLIST'] .= '<ul type="circle">';
+          if (!$eventdata->havetime($name)) {
+            $vars['EVENTLIST'] .= '<li>(None currently set)</li>';
+          }
+          else {
+            foreach ($eventdata->nexttimestr($name) as $timestr) {
+              $vars['EVENTLIST'] .= '<li>'
+                                  . $timestr
+                                  . '&nbsp;&nbsp'
+                                  . str_replace('NUM', $counter++, $deletebutton)
+                                  .'</li>';
+            }
+          }
+          $vars['EVENTLIST'] .= '</ul>';
+        }
+        $vars['EVENTLIST'] .= '</ul>' . $hline;
       }
     }
     $body = file_get_contents('pages/secret.html');
@@ -225,16 +253,11 @@
       if (!$eventdata->havetime($name)) {
         continue;
       }
-      if (!empty($vars['OTHERAVAIL'])) {
-        $vars['OTHERAVAIL'] .= '</ul>' . $hline;
-      }
       $vars['OTHERAVAIL'] .= h4text('Availability of another member:')
                           . '<ul type="circle">';
       foreach ($eventdata->nexttimestr($name) as $timestr) {
         $vars['OTHERAVAIL'] .= '<li>' . $timestr . '</li>';
       }
-    }
-    if (!empty($vars['OTHERAVAIL'])) {
       $vars['OTHERAVAIL'] .= '</ul>' . $hline;
     }
     $body .= file_get_contents('pages/settimes.html');
@@ -243,6 +266,8 @@
   $vars['DESCRIPTIONTEXT'] = 'Schedule Availability';
   $page = file_get_contents('page.html');
   $page = str_replace('PAGEBODY', $body, $page);
-  $page = setvars($vars, $page);
+  foreach ($vars as $key => $value) {
+    $page = str_replace($key, $value, $page);
+  }
   echo $page;
 ?>
