@@ -22,18 +22,6 @@
       }
       $this->loadtimes();
     }
-    private function dumptimes() {
-      $file = fopen($this->timefile, 'w');
-      if ($file) {
-        foreach ($this->times as $name => $times) {
-          fwrite($file, md5($name) . PHP_EOL);
-          foreach($times as $time) {
-            fwrite($file, $time . PHP_EOL);
-          }
-        }
-        fclose($file);
-      }
-    }
     private function loadtimes() {
       $this->times = [];
       $hashes = array_map('md5', $this->names);
@@ -63,6 +51,22 @@
               . date('Hi', $time[0])
               . ' and '
               . date('Hi', $time[1]);
+    }
+    public function dumpnames() {
+      file_put_contents($this->namefile,
+                        implode(PHP_EOL, $this->names) . PHP_EOL);
+    }
+    public function dumptimes() {
+      $file = fopen($this->timefile, 'w');
+      if ($file) {
+        foreach ($this->times as $name => $times) {
+          fwrite($file, md5($name) . PHP_EOL);
+          foreach($times as $time) {
+            fwrite($file, $time . PHP_EOL);
+          }
+        }
+        fclose($file);
+      }
     }
     public function havetime($name) {
       return array_key_exists($name, $this->times);
@@ -132,6 +136,18 @@
     }
   }
   date_default_timezone_set('America/Chicago');
+  function removedir($dir) {
+    foreach (new DirectoryIterator($dir) as $f) {
+      if ($f->isDot()) { }
+      elseif ($f->isFile()) {
+        unlink($f->getPathname());
+      }
+      elseif ($f->isDir()) {
+        removedir($f->getPathname());
+      }
+    }
+    rmdir($dir);
+  }
   function h3text($text) {
     return '<h3>' . $text . '</h3>';
   }
@@ -177,39 +193,81 @@
     $body = file_get_contents('pages/setname.html');
   }
   elseif (strcmp($eventdata->event, $secretevent) === 0) {
-    $counter = 0;
-    $deletebutton = '<button class="delete-button" '
-                  . 'type="button" id="delete-event-btn" '
-                  . 'onclick="delete_click(NUM)">'
-                  . '×'
-                  . '</button>';
+    if (isset($_POST['del'])) {
+      if (strcmp($_POST['del'], 'event') === 0) {
+        $counter = -1;
+        foreach (glob('*', GLOB_ONLYDIR) as $event) {
+          if (strcmp($event, $secretevent) === 0) { }
+          elseif (++$counter == $_POST['index']) {
+            removedir($event);
+            break;
+          }
+        }
+      }
+      elseif (strcmp($_POST['del'], 'name') === 0) {
+        $eventdata = new EventData($_POST['delevent']);
+        unset($eventdata->names[$_POST['index']]);
+        $eventdata->dumpnames();
+      }
+      elseif (strcmp($_POST['del'], 'time') === 0) {
+        $eventdata = new EventData($_POST['delevent']);
+        unset($eventdata->times[$_POST['delname']][$_POST['index']]);
+        $eventdata->dumptimes();
+      }
+    }
+    function delbutton(...$args) {
+      $button = '&nbsp;&nbsp;<button class="del-button" '
+              . 'type="button" id="del-thing-btn" '
+              . 'onclick="del_thing(';
+      // which
+      $button .= "\"$args[0]\"";
+      // index
+      $button .= ", $args[1]";
+      if (strcmp($args[0], "event") !== 0) {
+        // eventname
+        $button .= ", \"$args[2]\"";
+        if (strcmp($args[0], "name") === 0) {
+          // name
+          $button .= ", \"$args[3]\"";
+        }
+      }
+      $button .= ')>×</button>';
+      return $button;
+    }
     $hline = '<hr width="50%" color="#008A00" align="left" />';
+    $eventnum = 0;
     $vars['EVENTLIST'] = '';
     foreach (glob('*', GLOB_ONLYDIR) as $event) {
-      if (strcmp($event, $secretevent) === 0) { }
-      elseif (is_file(join(DIRECTORY_SEPARATOR, array($event, 'names')))) {
-        $eventdata = new EventData($event);
-        $vars['EVENTLIST'] .= h4text($event . ':')
-                            . '<ul type="none">';
-        foreach ($eventdata->nextname() as $name) {
-          $vars['EVENTLIST'] .= '<li>' . $name;
-          $vars['EVENTLIST'] .= '<ul type="circle">';
-          if (!$eventdata->havetime($name)) {
-            $vars['EVENTLIST'] .= '<li>(None currently set)</li>';
-          }
-          else {
-            foreach ($eventdata->nexttimestr($name) as $timestr) {
-              $vars['EVENTLIST'] .= '<li>'
-                                  . $timestr
-                                  . '&nbsp;&nbsp'
-                                  . str_replace('NUM', $counter++, $deletebutton)
-                                  .'</li>';
-            }
-          }
-          $vars['EVENTLIST'] .= '</ul>';
-        }
-        $vars['EVENTLIST'] .= '</ul>' . $hline;
+      if (strcmp($event, $secretevent) === 0) {
+        continue;
       }
+      $namenum = 0;
+      $eventdata = new EventData($event);
+      $vars['EVENTLIST'] .= h4text($event . ':')
+                          . delbutton('event',
+                                      $eventnum++)
+                          . '<ul type="none">';
+      foreach ($eventdata->nextname() as $name) {
+        $timenum = 0;
+        $vars['EVENTLIST'] .= '<li>' . $name
+                            . delbutton('name',
+                                        $namenum++, $event)
+                            . '<ul type="circle">';
+        if (!$eventdata->havetime($name)) {
+          $vars['EVENTLIST'] .= '<li>(None currently set)</li>';
+        }
+        else {
+          foreach ($eventdata->nexttimestr($name) as $timestr) {
+            $vars['EVENTLIST'] .= '<li>'
+                                . $timestr
+                                . delbutton('time',
+                                            $timenum++, $event, $name)
+                                .'</li>';
+          }
+        }
+        $vars['EVENTLIST'] .= '</ul>';
+      }
+      $vars['EVENTLIST'] .= '</ul>' . $hline;
     }
     $body = file_get_contents('pages/secret.html');
   }
