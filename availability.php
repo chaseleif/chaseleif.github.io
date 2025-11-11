@@ -137,6 +137,12 @@
       }
       $this->dumptimes();
     }
+    public function addname($name) {
+      if (!in_array($name, $this->names)) {
+        array_push($this->names, $name);
+      }
+      $this->dumpnames();
+    }
     public function removename($index) {
       $this->loadtimes();
       $name = $this->names[$index];
@@ -176,19 +182,20 @@
       unset($eventdata);
     }
   }
-  if (isset($_POST['firstname']) && isset($_POST['lastname'])) {
+  if (!isset($eventdata)) { }
+  elseif (isset($_POST['firstname']) && isset($_POST['lastname'])) {
     $who = strtolower($_POST['firstname'])
           . '~' . strtolower($_POST['lastname']);
   }
-  else if (isset($_POST['who'])) {
+  elseif (isset($_POST['who'])) {
     $who = $_POST['who'];
   }
-  if (isset($who) && isset($eventdata)) {
+  if (isset($who)) {
     if (substr_count($who, '~') !== 1) {
       $vars['ERRORMSG'] = h3text('No ?');
     }
     else {
-      $who = ucwords(str_replace('~', ' ', $who), ' ');
+      $who = ucwords(strtolower(str_replace('~', ' ', $who)));
       if (!in_array($who, $eventdata->names)) {
         $vars['ERRORMSG'] = h3text('No ?');
       }
@@ -198,6 +205,7 @@
       $vars['EVENTNAME'] = $eventdata->event;
     }
     else {
+      unset($eventdata);
       unset($who);
     }
   }
@@ -206,7 +214,43 @@
     $body = file_get_contents('pages/setname.html');
   }
   elseif (strcmp($eventdata->event, $secretevent) === 0) {
-    if (isset($_POST['del'])) {
+    // validate new names for add requests
+    if (isset($_POST['add'])) {
+      if (strcmp($_POST['add'], 'event') === 0) {
+        $postevent = 'newname';
+      }
+      elseif(strcmp($_POST['add'], 'name') === 0) {
+        $postname = 'newname';
+        $postevent = 'addnameto';
+      }
+      if ((isset($postname) && !isset($_POST[$postname])) ||
+          !isset($postevent) || !isset($_POST[$postevent])) {
+        $vars['ERRORMSG'] = h3text('What are you doing ?');
+      }
+      elseif (!ctype_alnum($_POST[$postevent])) {
+        $vars['ERRORMSG'] = h3text('Event name must be alphanumeric');
+      }
+      elseif (!isset($postname) && file_exists(strtolower($_POST[$postevent]))) {
+        $vars['ERRORMSG'] = h3text('Event name "' . $_POST[$postevent]  . '" unavailable');
+      }
+      elseif (isset($postname) && substr_count($_POST[$postname], ' ') !== 1) {
+        $vars['ERRORMSG'] = h3text('Expected name as: "First Last"');
+      }
+      else if (!array_all(explode(' ', $_POST[$postname]),
+                          function (string $value) {
+                            return ctype_alnum($value);
+                          })) {
+        $vars['ERRORMSG'] = h3text('First/Last name must be alphanumeric');
+      }
+      else {
+        $_POST[$postevent] = strtolower($_POST[$postevent]);
+        if (isset($postname)) {
+          $_POST[$postname] = ucwords(strtolower($_POST[$postname]));
+        }
+      }
+    }
+    if (!empty($vars['ERRORMSG'])) { }
+    elseif (isset($_POST['del'])) {
       if (strcmp($_POST['del'], 'event') === 0) {
         $counter = -1;
         foreach (glob('*', GLOB_ONLYDIR) as $event) {
@@ -226,34 +270,73 @@
         $eventdata->removetime($_POST['delname'], $_POST['index']);
       }
     }
-    elseif (isset($_POST['newevent'])) {
-      if (!ctype_alnum($_POST['newevent'])) {
-        $vars['ERRORMSG'] = h3text('Event name must be alphanumeric');
+    elseif (isset($_POST['add'])) {
+      $newname = $_POST['newname'];
+      if (strcmp($_POST['add'], 'event') === 0) {
+        mkdir($newname, 0700);
+        $filenames = ['log','names','times'];
+        foreach ($filenames as $file) {
+          $filename = join(DIRECTORY_SEPARATOR, array($newname, $file));
+          if (!file_exists($filename)) {
+            $file = fopen($filename, 'w');
+            if ($file) {
+              fclose($file);
+              chmod($filename, 0600);
+            }
+          }
+          else {
+            chmod($filename, 0600);
+          }
+        }
+        $namefile = join(DIRECTORY_SEPARATOR, array($newname, 'names'));
+        $names = file($namefile, FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES);
+        file_put_contents($namefile, 'place holder' . PHP_EOL);
       }
-      elseif (!file_exists($_POST['newevent'])) {
-        mkdir($_POST['newevent'], 0700);
-      }
-    }
-    function delbutton(...$args) {
-      $button = '&nbsp;&nbsp;<button class="del-button" '
-              . 'type="button" id="del-thing-btn" '
-              . 'onclick="del_thing(';
-      // which
-      $button .= "'$args[0]'";
-      // index
-      $button .= ", $args[1]";
-      // event only needs which and index, others need eventname
-      if (strcmp($args[0], "event") !== 0) {
-        // eventname
-        $button .= ", '$args[2]'";
-        // name only needs which, index, and eventname
-        if (strcmp($args[0], "name") !== 0) {
-          // name
-          $button .= ", '$args[3]'";
+      elseif (strcmp($_POST['add'], 'name') === 0) {
+        $eventdata = new EventData($_POST['addnameto']);
+        if ($eventdata->ready()) {
+          $eventdata->addname($newname);
+        }
+        else {
+          $vars['ERRORMSG'] = h3text('Problem loading the event ?');
         }
       }
-      $button .= ')">×</button>';
+    }
+    function modbutton(...$args) {
+      $button = '&nbsp;&nbsp;<button class="mod-button" '
+              . 'type="button" id="mod-thing-btn" '
+              . 'onclick="mod_thing(';
+      // action ('add' or 'del')
+      $button .= "'$args[0]'";
+      // which
+      $button .= ", '$args[1]'";
+      if (strcmp($args[0], 'del') === 0) {
+        // all 'del' calls take an index
+        $button .= ", $args[2]";
+        // event only needs which and index, others need eventname
+        if (strcmp($args[1], "event") !== 0) {
+          // eventname
+          $button .= ", '$args[3]'";
+          // name only needs which, index, and eventname
+          if (strcmp($args[1], "name") !== 0) {
+            // name
+            $button .= ", '$args[4]'";
+          }
+        }
+        $button .= ')">×</button>';
+      }
+      else { //if (strcmp($args[0], 'add') === 0) {
+        // adding an event doesn't need any additional information
+        // adding a name to an event needs the event name
+        if (strcmp($args[1], "name") === 0) {
+          $button .= ", '$args[2]'";
+        }
+        $button .= ')">➕</button>';
+      }
       return $button . PHP_EOL;
+    }
+    function inputfield($id, $text) {
+      return '<input id="' . $id . '" type="text" placeholder="' . $text . '"/>' . PHP_EOL;
     }
     $hline = '<hr width="50%" color="#008A00" align="left" />' . PHP_EOL;
     $eventnum = 0;
@@ -264,15 +347,20 @@
         continue;
       }
       $namenum = 0;
-      $vars['EVENTLIST'] .= h4text($event . ':')
+      $vars['EVENTLIST'] .= '<h4>' . $event . ':'
                           . PHP_EOL
-                          . delbutton('event',
-                                      $eventnum++)
-                          . '<ul type="none">';
+                          . modbutton('del', 'event', $eventnum++)
+                          . '</h4><ul type="none">'
+                          . PHP_EOL
+                          . '<li>'
+                          . inputfield($event . 'newname', 'Add name')
+                          . modbutton('add', 'name', $event)
+                          . '</li><br>'
+                          . PHP_EOL;
       foreach ($eventdata->nextname() as $name) {
         $timenum = 0;
         $vars['EVENTLIST'] .= '<li>' . $name . PHP_EOL
-                            . delbutton('name',
+                            . modbutton('del', 'name',
                                         $namenum++, $event)
                             . '<ul type="circle">';
         if (!$eventdata->havetime($name)) {
@@ -282,7 +370,7 @@
           foreach ($eventdata->nexttimestr($name) as $timestr) {
             $vars['EVENTLIST'] .= '<li>'
                                 . $timestr
-                                . delbutton('time',
+                                . modbutton('del', 'time',
                                             $timenum++, $event, $name)
                                 .'</li>' . PHP_EOL;
           }
