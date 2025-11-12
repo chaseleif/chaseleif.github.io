@@ -117,7 +117,6 @@
       }
     }
     public function ready() {
-      error_log("this ready() = . " . is_file($this->namefile));
       return is_file($this->namefile);
     }
     public function loaded() {
@@ -192,7 +191,6 @@
   }
   date_default_timezone_set('America/Chicago');
   function removedir($dir) {
-    error_log("in removedir $dir");
     foreach (new DirectoryIterator($dir) as $f) {
       if ($f->isDot()) { }
       elseif ($f->isFile()) {
@@ -289,20 +287,9 @@
     }
     if (!empty($vars['ERRORMSG'])) { }
     elseif (isset($_POST['del'])) {
-      error_log("post['del'] = " . $_POST['del']);
       if (strcmp($_POST['del'], 'event') === 0) {
-        $counter = -1;
-        error_log("can't be $secretevent want index " . $_POST['index']);
-        foreach (nextevent() as $event) {
-          error_log("nextevent yielded $event");
-          $eventdata = new EventData($event);
-          if (strcmp($event, $secretevent) !== 0
-              && !$eventdata->ready()
-              && ++$counter == $_POST['index']) {
-            error_log("calling removedir($event)");
-            removedir(event2path($event));
-            break;
-          }
+        if (strcmp($_POST['delevent'], $secretevent) !== 0) {
+          removedir(event2path($_POST['delevent']));
         }
       }
       elseif (strcmp($_POST['del'], 'name') === 0) {
@@ -338,10 +325,11 @@
       // which
       $button .= ", '$args[1]'";
       if (strcmp($args[0], 'del') === 0) {
-        // all 'del' calls take an index
-        $button .= ", $args[2]";
-        // event only needs which and index, others need eventname
-        if (strcmp($args[1], "event") !== 0) {
+        if (strcmp($args[1], "event") === 0) {
+          $button .= ", '$args[2]'";
+        }
+        else {//if (strcmp($args[1], "event") !== 0) {
+          $button .= ", $args[2]";
           // eventname
           $button .= ", '$args[3]'";
           // name only needs which, index, and eventname
@@ -366,7 +354,6 @@
       return '<input id="' . $id . '" type="text" placeholder="' . $text . '"/>' . PHP_EOL;
     }
     $hline = '<hr width="50%" color="#008A00" align="left" />' . PHP_EOL;
-    $eventnum = 0;
     $vars['EVENTLIST'] = '';
     foreach (nextevent() as $event) {
       if (strcmp($event, $secretevent) === 0) {
@@ -379,7 +366,7 @@
       $namenum = 0;
       $vars['EVENTLIST'] .= '<h4>' . $event . ':'
                           . PHP_EOL
-                          . modbutton('del', 'event', $eventnum++)
+                          . modbutton('del', 'event', $event)
                           . '</h4><ul type="none">'
                           . PHP_EOL
                           . '<li>'
