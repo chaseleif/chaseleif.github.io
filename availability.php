@@ -236,10 +236,11 @@
       elseif (isset($postname) && substr_count($_POST[$postname], ' ') !== 1) {
         $vars['ERRORMSG'] = h3text('Expected name as: "First Last"');
       }
-      else if (!array_all(explode(' ', $_POST[$postname]),
-                          function (string $value) {
-                            return ctype_alnum($value);
-                          })) {
+      else if (isset($postname) &&
+                !array_all(explode(' ', $_POST[$postname]),
+                            function (string $value) {
+                              return ctype_alnum($value);
+                            })) {
         $vars['ERRORMSG'] = h3text('First/Last name must be alphanumeric');
       }
       else {
@@ -255,7 +256,7 @@
         $counter = -1;
         foreach (glob('*', GLOB_ONLYDIR) as $event) {
           $eventdata = new EventData($event);
-          if (strcmp($event, $secretevent) === 0 || !eventdata->ready()) { }
+          if (strcmp($event, $secretevent) === 0 || !$eventdata->ready()) { }
           elseif (++$counter == $_POST['index']) {
             removedir($event);
             break;
@@ -354,6 +355,7 @@
                           . '</h4><ul type="none">'
                           . PHP_EOL
                           . '<li>'
+                          . 'Add: '
                           . inputfield($event . '-name', 'First Last')
                           . modbutton('add', 'name', $event)
                           . '</li><br>'
