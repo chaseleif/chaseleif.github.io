@@ -254,7 +254,8 @@
       if (strcmp($_POST['del'], 'event') === 0) {
         $counter = -1;
         foreach (glob('*', GLOB_ONLYDIR) as $event) {
-          if (strcmp($event, $secretevent) === 0) { }
+          $eventdata = new EventData($event);
+          if (strcmp($event, $secretevent) === 0 || !eventdata->ready()) { }
           elseif (++$counter == $_POST['index']) {
             removedir($event);
             break;
@@ -353,7 +354,7 @@
                           . '</h4><ul type="none">'
                           . PHP_EOL
                           . '<li>'
-                          . inputfield($event . 'newname', 'Add name')
+                          . inputfield($event . '-name', 'First Last')
                           . modbutton('add', 'name', $event)
                           . '</li><br>'
                           . PHP_EOL;
