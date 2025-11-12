@@ -1,4 +1,39 @@
 <?php
+  function nextevent() {
+    $events = [];
+    foreach (glob(join(DIRECTORY_SEPARATOR, array('events', '*'))) as $event) {
+      if (is_file(join(DIRECTORY_SEPARATOR, array($event, 'event')))) {
+        array_push($events, basename($event));
+      }
+    }
+    sort($events);
+    foreach ($events as $event) {
+      yield $event;
+    }
+  }
+  function event2path($event) {
+    return join(DIRECTORY_SEPARATOR, array('events', $event));
+  }
+  function eventfile($event, $file) {
+    return join(DIRECTORY_SEPARATOR, array('events', $event, $file));
+  }
+  function createevent($event) {
+    if (is_file(event2path($event))) {
+      return;
+    }
+    mkdir(event2path($event), 0700);
+    $filenames = ['log', 'names', 'times'];
+    foreach ($filenames as $filename) {
+      $filename = eventfile($event, $filename);
+      $file = fopen($filename, 'w');
+      if ($file) {
+        fclose($file);
+        chmod($filename, 0600);
+      }
+    }
+    file_put_contents(eventfile($event, 'names'),
+                      'place holder' . PHP_EOL);
+  }
   class EventData {
     private $logfile;
     private $namefile;
@@ -7,10 +42,10 @@
     public $names;
     public $times;
     public function __construct($event) {
-      $this->event = $event;
-      $this->logfile = join(DIRECTORY_SEPARATOR, array($event, 'log'));
-      $this->namefile = join(DIRECTORY_SEPARATOR, array($event, 'names'));
-      $this->timefile = join(DIRECTORY_SEPARATOR, array($event, 'times'));
+      $this->event = strtolower($event);
+      $this->logfile = eventfile($this->event, 'log');
+      $this->namefile = eventfile($this->event,'names');
+      $this->timefile = eventfile($this->event, 'times');
       if (file_exists($this->namefile)) {
         $this->names =
             file($this->namefile,
@@ -82,6 +117,7 @@
       }
     }
     public function ready() {
+      error_log("this ready() = . " . is_file($this->namefile));
       return is_file($this->namefile);
     }
     public function loaded() {
@@ -156,6 +192,7 @@
   }
   date_default_timezone_set('America/Chicago');
   function removedir($dir) {
+    error_log("in removedir $dir");
     foreach (new DirectoryIterator($dir) as $f) {
       if ($f->isDot()) { }
       elseif ($f->isFile()) {
@@ -176,7 +213,7 @@
   $vars = [];
   $vars['ERRORMSG'] = '';
   if (isset($_POST['eventname'])) {
-    $eventdata = new EventData(strtolower($_POST['eventname']));
+    $eventdata = new EventData($_POST['eventname']);
     if (!$eventdata->loaded()) {
       $vars['ERRORMSG'] = h3text('No ?');
       unset($eventdata);
@@ -252,13 +289,18 @@
     }
     if (!empty($vars['ERRORMSG'])) { }
     elseif (isset($_POST['del'])) {
+      error_log("post['del'] = " . $_POST['del']);
       if (strcmp($_POST['del'], 'event') === 0) {
         $counter = -1;
-        foreach (glob('*', GLOB_ONLYDIR) as $event) {
+        error_log("can't be $secretevent want index " . $_POST['index']);
+        foreach (nextevent() as $event) {
+          error_log("nextevent yielded $event");
           $eventdata = new EventData($event);
-          if (strcmp($event, $secretevent) === 0 || !$eventdata->ready()) { }
-          elseif (++$counter == $_POST['index']) {
-            removedir($event);
+          if (strcmp($event, $secretevent) !== 0
+              && !$eventdata->ready()
+              && ++$counter == $_POST['index']) {
+            error_log("calling removedir($event)");
+            removedir(event2path($event));
             break;
           }
         }
@@ -275,24 +317,7 @@
     elseif (isset($_POST['add'])) {
       $newname = $_POST['newname'];
       if (strcmp($_POST['add'], 'event') === 0) {
-        mkdir($newname, 0700);
-        $filenames = ['log','names','times'];
-        foreach ($filenames as $file) {
-          $filename = join(DIRECTORY_SEPARATOR, array($newname, $file));
-          if (!file_exists($filename)) {
-            $file = fopen($filename, 'w');
-            if ($file) {
-              fclose($file);
-              chmod($filename, 0600);
-            }
-          }
-          else {
-            chmod($filename, 0600);
-          }
-        }
-        $namefile = join(DIRECTORY_SEPARATOR, array($newname, 'names'));
-        $names = file($namefile, FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES);
-        file_put_contents($namefile, 'place holder' . PHP_EOL);
+        createevent($newname);
       }
       elseif (strcmp($_POST['add'], 'name') === 0) {
         $eventdata = new EventData($_POST['addnameto']);
@@ -343,9 +368,12 @@
     $hline = '<hr width="50%" color="#008A00" align="left" />' . PHP_EOL;
     $eventnum = 0;
     $vars['EVENTLIST'] = '';
-    foreach (glob('*', GLOB_ONLYDIR) as $event) {
+    foreach (nextevent() as $event) {
+      if (strcmp($event, $secretevent) === 0) {
+        continue;
+      }
       $eventdata = new EventData($event);
-      if (strcmp($event, $secretevent) === 0 || !$eventdata->ready()) {
+      if (!$eventdata->ready()) {
         continue;
       }
       $namenum = 0;
