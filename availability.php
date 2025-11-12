@@ -22,7 +22,7 @@
       return;
     }
     mkdir(event2path($event), 0700);
-    $filenames = ['log', 'names', 'times'];
+    $filenames = ['log', 'names', 'times', 'event'];
     foreach ($filenames as $filename) {
       $filename = eventfile($event, $filename);
       $file = fopen($filename, 'w');
