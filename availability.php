@@ -1,23 +1,20 @@
 <?php
-  function nextevent() {
-    $events = [];
-    foreach (glob(join(DIRECTORY_SEPARATOR, array('events', '*'))) as $event) {
-      if (is_file(join(DIRECTORY_SEPARATOR, array($event, 'event')))) {
-        array_push($events, basename($event));
-      }
-    }
-    sort($events);
-    foreach ($events as $event) {
-      yield $event;
-    }
-  }
   function event2path($event) {
     return join(DIRECTORY_SEPARATOR, array('events', $event));
   }
   function eventfile($event, $file) {
     return join(DIRECTORY_SEPARATOR, array('events', $event, $file));
   }
-  function createevent($event) {
+  $GLOBALS['events'] = []
+  foreach (glob(join(DIRECTORY_SEPARATOR,
+                array('events', '*'))) as $event) {
+    $event = strtolower(basename($event));
+    if (is_file(eventfile($event, 'event'))) {
+      array_push($GLOBALS['events'], basename($event));
+    }
+  }
+  sort($GLOBALS['events']);
+  function createevent($event, $owner) {
     if (is_file(event2path($event))) {
       return;
     }
@@ -31,10 +28,11 @@
         chmod($filename, 0600);
       }
     }
-    file_put_contents(eventfile($event, 'names'),
-                      'place holder' . PHP_EOL);
+    file_put_contents(eventfile($event, 'events'),
+                      $owner . PHP_EOL);
   }
   class EventData {
+    private $owner;
     private $logfile;
     private $namefile;
     private $timefile;
@@ -42,7 +40,13 @@
     public $names;
     public $times;
     public function __construct($event) {
-      $this->event = strtolower($event);
+      $event = strtolower($event);
+      if (!file_exists(eventfile($event, 'owner'))) {
+        return;
+      }
+      $this->event = $event;
+      $this->owner = eventfile($event, 'owner');
+      $this->owner = rtrim(file_get_contents($this->owner));
       $this->logfile = eventfile($this->event, 'log');
       $this->namefile = eventfile($this->event,'names');
       $this->timefile = eventfile($this->event, 'times');
@@ -68,10 +72,16 @@
             $line = rtrim($line);
             if (empty($line)) { }
             elseif (strpos($line, '-') === false) {
-              $name = $this->names[array_search($line, $hashes)];
-              $this->times[$name] = [];
+              $name = array_search($line, $hashes);
+              if ($name === false) {
+                $name = '';
+              }
+              else {
+                $name = $this->names[$name];
+                $this->times[$name] = [];
+              }
             }
-            else {
+            elseif (!empty($name)) {
               array_push($this->times[$name], $line);
             }
           }
@@ -116,22 +126,18 @@
         yield $name;
       }
     }
-    public function ready() {
-      return is_file($this->namefile);
+    public function valid() {
+      return isset($this->owner);
     }
-    public function loaded() {
-      return (!empty($this->names));
-    }
-    public function addtime($name, $time) {
+    private function log($line) {
       $file = fopen($this->logfile, 'a');
       if ($file) {
-        fwrite($file, '+ '
-                      . $name
-                      . ' '
-                      . $this->time2str($time)
-                      . PHP_EOL);
+        fwrite($file, $line . PHP_EOL);
         fclose($file);
       }
+    }
+    public function addtime($name, $time) {
+      $this->log("+ $name {$this->time2str($time)}");
       $this->loadtimes();
       if (!array_key_exists($name, $this->times)) {
         $this->times[$name] = [];
@@ -155,16 +161,8 @@
       $this->dumptimes();
     }
     public function removetime($name, $timeindex) {
-      $line = '- '
-            . $name
-            . ' '
-            . $this->time2str($this->times[$name][$timeindex])
-            . PHP_EOL;
-      $file = fopen($this->logfile, 'a');
-      if ($file) {
-        fwrite($file, $line);
-        fclose($file);
-      }
+      $this->log("- $name "
+                . $this->time2str($this->times[$name][$timeindex]));
       $this->loadtimes();
       unset($this->times[$name][$timeindex]);
       if (empty($this->times[$name])) {
@@ -212,7 +210,7 @@
   $vars['ERRORMSG'] = '';
   if (isset($_POST['eventname'])) {
     $eventdata = new EventData($_POST['eventname']);
-    if (!$eventdata->loaded()) {
+    if (!$eventdata->valid()) {
       $vars['ERRORMSG'] = h3text('No ?');
       unset($eventdata);
     }
@@ -308,7 +306,7 @@
       }
       elseif (strcmp($_POST['add'], 'name') === 0) {
         $eventdata = new EventData($_POST['addnameto']);
-        if ($eventdata->ready()) {
+        if ($eventdata->valid()) {
           $eventdata->addname($newname);
         }
         else {
@@ -355,12 +353,12 @@
     }
     $hline = '<hr width="50%" color="#008A00" align="left" />' . PHP_EOL;
     $vars['EVENTLIST'] = '';
-    foreach (nextevent() as $event) {
+    foreach ($GLOBALS['events'] as $event) {
       if (strcmp($event, $secretevent) === 0) {
         continue;
       }
       $eventdata = new EventData($event);
-      if (!$eventdata->ready()) {
+      if (!$eventdata->valid()) {
         continue;
       }
       $namenum = 0;
