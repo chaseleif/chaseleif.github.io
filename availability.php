@@ -5,15 +5,6 @@
   function eventfile($event, $file) {
     return join(DIRECTORY_SEPARATOR, array('events', $event, $file));
   }
-  $GLOBALS['events'] = []
-  foreach (glob(join(DIRECTORY_SEPARATOR,
-                array('events', '*'))) as $event) {
-    $event = strtolower(basename($event));
-    if (is_file(eventfile($event, 'event'))) {
-      array_push($GLOBALS['events'], basename($event));
-    }
-  }
-  sort($GLOBALS['events']);
   function createevent($event, $owner) {
     if (is_file(event2path($event))) {
       return;
@@ -28,38 +19,163 @@
         chmod($filename, 0600);
       }
     }
-    file_put_contents(eventfile($event, 'events'),
-                      $owner . PHP_EOL);
+    file_put_contents(eventfile($event, 'event'), $owner . PHP_EOL);
+  }
+  function removedir($dir) {
+    foreach (new DirectoryIterator($dir) as $f) {
+      if ($f->isDot()) { }
+      elseif ($f->isFile()) {
+        unlink($f->getPathname());
+      }
+      elseif ($f->isDir()) {
+        removedir($f->getPathname());
+      }
+    }
+    rmdir($dir);
+  }
+  function wraptext($wrap, $text) {
+    return "<$wrap>$text</$wrap>" . PHP_EOL;
+  }
+  function initevents() {
+    $GLOBALS['events'] = [];
+    foreach (glob(join(DIRECTORY_SEPARATOR,
+                  array('events', '*'))) as $event) {
+      $event = strtolower(basename($event));
+      if (is_file(eventfile($event, 'event'))) {
+        $owner = rtrim(file_get_contents(eventfile($event, 'event')));
+        if (substr_count($owner, '=') === 1) {
+          $owner = explode('=', $owner);
+          if (strcmp($owner[0], 'secret') === 0) {
+            $GLOBALS['secret'] = $event;
+            $owner = $owner[1];
+          }
+          else {
+            continue;
+          }
+        }
+        $GLOBALS['events'][$event] = $owner;
+      }
+    }
+    ksort($GLOBALS['events']);
+  }
+  class InState {
+    public $errormsg;
+    public $eventdata;
+    public $whoami;
+    public function __construct() {
+      $this->errormsg = '';
+      foreach ($_POST as $key => $value) {
+        $_POST[$key] = strtolower(trim($value));
+        if ($_POST[$key] === '') {
+          unset($_POST[$key]);
+        }
+      }
+      if (isset($_POST['eventname'])) {
+        $this->eventdata = new EventData($_POST['eventname']);
+        if (!$this->eventdata->valid()) {
+          $this->errormsg = 'No ?';
+          unset($this->eventdata);
+        }
+      }
+      if (!isset($this->eventdata)) { }
+      elseif (isset($_POST['firstname']) && isset($_POST['lastname'])) {
+        $this->whoami = $_POST['firstname'] . '~' . $_POST['lastname'];
+      }
+      elseif (isset($_POST['who'])) {
+        $this->whoami = $_POST['who'];
+      }
+      if (isset($this->whoami)) {
+        if (substr_count($this->whoami, '~') !== 1) {
+          $this->errormsg = 'No ?';
+        }
+        else {
+          $this->whoami = ucwords(str_replace('~', ' ', $this->whoami));
+          if (strcmp($this->whoami, $this->eventdata->owner) !== 0
+              && !in_array($this->whoami, $this->eventdata->names)) {
+            $this->errormsg = 'No ?';
+          }
+        }
+      }
+      if ($this->errormsg !== '') {
+        unset($this->whoami);
+        unset($this->eventdata);
+        return;
+      }
+      else if (!isset($this->eventdata)) { }
+      elseif (strcmp($this->eventdata->event, $GLOBALS['secret']) === 0) {
+        $this->valmgmtargs();
+      }
+    }
+    private function valmgmtargs() {
+      // event management
+      if (isset($_POST['add'])) {
+        if (strcmp($_POST['add'], 'event') === 0) {
+          $postevent = 'newname';
+        }
+        elseif(strcmp($_POST['add'], 'name') === 0) {
+          $postname = 'newname';
+          $postevent = 'addnameto';
+        }
+        if ((isset($postname) && !isset($_POST[$postname])) ||
+            !isset($postevent) || !isset($_POST[$postevent])) {
+          $this->errormsg = 'What are you doing ?';
+        }
+        elseif (!ctype_alnum($_POST[$postevent])) {
+          $this->errormsg = 'Event name must be alphanumeric';
+        }
+        elseif (!isset($postname) && file_exists(event2path($_POST[$postevent]))) {
+          $this->errormsg = 'Event name ' . $_POST[$postevent] . ' is unavailable';
+        }
+        elseif (isset($postname) && substr_count($_POST[$postname], ' ') !== 1) {
+          $this->errormsg = 'Expected name as: "First Last"';
+        }
+        else if (isset($postname) &&
+                  !array_all(explode(' ', $_POST[$postname]),
+                              function (string $value) {
+                                return ctype_alnum($value);
+                              })) {
+          $this->errormsg = 'First and last name must be alphanumeric';
+        }
+        elseif (isset($postname)) {
+          $_POST[$postname] = ucwords($_POST[$postname]);
+        }
+      }
+      elseif (isset($_POST['del'])) {
+        if (strcmp($_POST['del'], 'event') === 0) {
+          if (strcmp($_POST['delevent'], $GLOBALS['secret']) === 0) {
+            $this->errormsg = 'What are you doing ?';
+          }
+        }
+      }
+    }
   }
   class EventData {
-    private $owner;
     private $logfile;
     private $namefile;
     private $timefile;
     public $event;
     public $names;
+    public $owner;
     public $times;
     public function __construct($event) {
-      $event = strtolower($event);
-      if (!file_exists(eventfile($event, 'owner'))) {
+      if (!array_key_exists($event, $GLOBALS['events'])) {
         return;
       }
       $this->event = $event;
-      $this->owner = eventfile($event, 'owner');
-      $this->owner = rtrim(file_get_contents($this->owner));
+      $this->owner = $GLOBALS['events'][$event];
       $this->logfile = eventfile($this->event, 'log');
       $this->namefile = eventfile($this->event,'names');
       $this->timefile = eventfile($this->event, 'times');
+      $this->loadnames();
+      $this->loadtimes();
+    }
+    private function loadnames() {
+      $this->names = [];
       if (file_exists($this->namefile)) {
-        $this->names =
-            file($this->namefile,
-                FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES);
+        $this->names = file($this->namefile,
+                            FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES);
         sort($this->names);
       }
-      else {
-        $this->names = [];
-      }
-      $this->loadtimes();
     }
     private function loadtimes() {
       $this->times = [];
@@ -70,7 +186,7 @@
           $name = '';
           while (($line = fgets($file)) !== false) {
             $line = rtrim($line);
-            if (empty($line)) { }
+            if ($line === '') { }
             elseif (strpos($line, '-') === false) {
               $name = array_search($line, $hashes);
               if ($name === false) {
@@ -81,7 +197,7 @@
                 $this->times[$name] = [];
               }
             }
-            elseif (!empty($name)) {
+            elseif ($name !== '') {
               array_push($this->times[$name], $line);
             }
           }
@@ -127,7 +243,7 @@
       }
     }
     public function valid() {
-      return isset($this->owner);
+      return (isset($this->owner) && $this->owner !== '');
     }
     private function log($line) {
       $file = fopen($this->logfile, 'a');
@@ -173,8 +289,8 @@
     public function addname($name) {
       if (!in_array($name, $this->names)) {
         array_push($this->names, $name);
+        $this->dumpnames();
       }
-      $this->dumpnames();
     }
     public function removename($index) {
       $this->loadtimes();
@@ -188,107 +304,21 @@
     }
   }
   date_default_timezone_set('America/Chicago');
-  function removedir($dir) {
-    foreach (new DirectoryIterator($dir) as $f) {
-      if ($f->isDot()) { }
-      elseif ($f->isFile()) {
-        unlink($f->getPathname());
-      }
-      elseif ($f->isDir()) {
-        removedir($f->getPathname());
-      }
-    }
-    rmdir($dir);
+  initevents();
+  $state = new InState();
+  $vars = [ 'ERRORMSG' => $state->errormsg ];
+  if (isset($state->whoami) && isset($state->eventdata)) {
+    $vars['WHO'] = $state->whoami;
+    $vars['EVENTNAME'] = $state->eventdata->event;
   }
-  function h3text($text) {
-    return '<h3>' . $text . '</h3>';
-  }
-  function h4text($text) {
-    return '<h4>' . $text . '</h4>';
-  }
-  $vars = [];
-  $vars['ERRORMSG'] = '';
-  if (isset($_POST['eventname'])) {
-    $eventdata = new EventData($_POST['eventname']);
-    if (!$eventdata->valid()) {
-      $vars['ERRORMSG'] = h3text('No ?');
-      unset($eventdata);
-    }
-  }
-  if (!isset($eventdata)) { }
-  elseif (isset($_POST['firstname']) && isset($_POST['lastname'])) {
-    $who = strtolower($_POST['firstname'])
-          . '~' . strtolower($_POST['lastname']);
-  }
-  elseif (isset($_POST['who'])) {
-    $who = $_POST['who'];
-  }
-  if (isset($who)) {
-    if (substr_count($who, '~') !== 1) {
-      $vars['ERRORMSG'] = h3text('No ?');
-    }
-    else {
-      $who = ucwords(strtolower(str_replace('~', ' ', $who)));
-      if (!in_array($who, $eventdata->names)) {
-        $vars['ERRORMSG'] = h3text('No ?');
-      }
-    }
-    if (empty($vars['ERRORMSG'])) {
-      $vars['WHO'] = $who;
-      $vars['EVENTNAME'] = $eventdata->event;
-    }
-    else {
-      unset($eventdata);
-      unset($who);
-    }
-  }
-  $secretevent = '12345678';
-  if (!isset($who)) {
+  if (!isset($state->whoami)) {
     $body = file_get_contents('pages/setname.html');
   }
-  elseif (strcmp($eventdata->event, $secretevent) === 0) {
-    // validate new names for add requests
-    if (isset($_POST['add'])) {
-      if (strcmp($_POST['add'], 'event') === 0) {
-        $postevent = 'newname';
-      }
-      elseif(strcmp($_POST['add'], 'name') === 0) {
-        $postname = 'newname';
-        $postevent = 'addnameto';
-      }
-      if ((isset($postname) && !isset($_POST[$postname])) ||
-          !isset($postevent) || !isset($_POST[$postevent])) {
-        $vars['ERRORMSG'] = h3text('What are you doing ?');
-      }
-      elseif (!ctype_alnum($_POST[$postevent])) {
-        $vars['ERRORMSG'] = h3text('Event name must be alphanumeric');
-      }
-      elseif (!isset($postname) && file_exists(strtolower($_POST[$postevent]))) {
-        $vars['ERRORMSG'] = h3text('Event name "' . $_POST[$postevent]  . '" unavailable');
-      }
-      elseif (isset($postname) && substr_count($_POST[$postname], ' ') !== 1) {
-        $vars['ERRORMSG'] = h3text('Expected name as: "First Last"');
-      }
-      else if (isset($postname) &&
-                !array_all(explode(' ', $_POST[$postname]),
-                            function (string $value) {
-                              return ctype_alnum($value);
-                            })) {
-        $vars['ERRORMSG'] = h3text('First/Last name must be alphanumeric');
-      }
-      else {
-        $_POST[$postevent] = strtolower($_POST[$postevent]);
-        if (isset($postname)) {
-          $_POST[$postname] = ucwords(strtolower($_POST[$postname]));
-        }
-      }
-    }
-    if (!empty($vars['ERRORMSG'])) { }
+  elseif (strcmp($state->eventdata->event, $GLOBALS['secret']) === 0) {
+    if ($state->errormsg !== '') { }
     elseif (isset($_POST['del'])) {
       if (strcmp($_POST['del'], 'event') === 0) {
-        if (strcmp($_POST['delevent'], $secretevent) !== 0) {
-          removedir(event2path($_POST['delevent']));
-        }
+        removedir(event2path($_POST['delevent']));
       }
       elseif (strcmp($_POST['del'], 'name') === 0) {
         $eventdata = new EventData($_POST['delevent']);
@@ -302,7 +332,7 @@
     elseif (isset($_POST['add'])) {
       $newname = $_POST['newname'];
       if (strcmp($_POST['add'], 'event') === 0) {
-        createevent($newname);
+        createevent($newname, $state->whoami);
       }
       elseif (strcmp($_POST['add'], 'name') === 0) {
         $eventdata = new EventData($_POST['addnameto']);
@@ -310,9 +340,12 @@
           $eventdata->addname($newname);
         }
         else {
-          $vars['ERRORMSG'] = h3text('Problem loading the event ?');
+          $vars['ERRORMSG'] = wraptext('h3', 'Problem loading the event ?');
         }
       }
+    }
+    if ($vars['ERRORMSG'] === '') {
+      initevents();
     }
     function modbutton(...$args) {
       $button = '&nbsp;&nbsp;<button class="mod-button" '
@@ -353,8 +386,8 @@
     }
     $hline = '<hr width="50%" color="#008A00" align="left" />' . PHP_EOL;
     $vars['EVENTLIST'] = '';
-    foreach ($GLOBALS['events'] as $event) {
-      if (strcmp($event, $secretevent) === 0) {
+    foreach ($GLOBALS['events'] as $event => $owner) {
+      if (strcmp($event, $GLOBALS['secret']) === 0) {
         continue;
       }
       $eventdata = new EventData($event);
@@ -380,7 +413,7 @@
                                         $namenum++, $event)
                             . '<ul type="circle">';
         if (!$eventdata->havetime($name)) {
-          $vars['EVENTLIST'] .= '<li>(None currently set)</li>' . PHP_EOL;
+          $vars['EVENTLIST'] .= wraptext('li', '(None currently set)');
         }
         else {
           foreach ($eventdata->nexttimestr($name) as $timestr) {
@@ -388,7 +421,7 @@
                                 . $timestr
                                 . modbutton('del', 'time',
                                             $timenum++, $event, $name)
-                                .'</li>' . PHP_EOL;
+                                . '</li>' . PHP_EOL;
           }
         }
         $vars['EVENTLIST'] .= '</ul>';
@@ -399,17 +432,17 @@
   }
   else {
     if (isset($_POST['delindex'])) {
-      $eventdata->removetime($who, $_POST['delindex']);
+      $state->eventdata->removetime($state->whoami, $_POST['delindex']);
     }
     elseif (isset($_POST['from']) && isset($_POST['until'])) {
       $_POST['from'] /= 1000;
       $_POST['until'] /= 1000;
-      $eventdata->addtime($who,
+      $state->eventdata->addtime($state->whoami,
                           $_POST['from'] . '-' . $_POST['until']);
     }
     $hline = '<hr width="50%" color="#008A00" align="left" />';
-    $body = '<b>' . $who . ' availability:</b><br>';
-    if (!$eventdata->havetime($who)) {
+    $body = wraptext('b', $state->whoami . ' availability:') . '<br>';
+    if (!$state->eventdata->havetime($state->whoami)) {
       $vars['AVAILABILITY'] = '(None currently set)';
     }
     else {
@@ -420,27 +453,26 @@
                     . 'onclick="delete_click(NUM)">'
                     . '×'
                     . '</button>';
-      foreach ($eventdata->nexttimestr($who) as $timestr) {
-        $vars['AVAILABILITY'] .= '<li>'
-                              . $timestr
-                              . '&nbsp;&nbsp;'
-                              . str_replace('NUM', $counter++, $deletebutton)
-                              . '</li>';
+      foreach ($state->eventdata->nexttimestr($state->whoami) as $timestr) {
+        $vars['AVAILABILITY'] .= wraptext('li',
+                                          $timestr
+                                          . '&nbsp;&nbsp;'
+                                          . str_replace('NUM', $counter++, $deletebutton));
       }
       $vars['AVAILABILITY'] .= '</ul>';
     }
     $vars['OTHERAVAIL'] = '';
-    foreach ($eventdata->nextname() as $name) {
-      if (strcmp($name, $who) === 0) {
+    foreach ($state->eventdata->nextname() as $name) {
+      if (strcmp($name, $state->whoami) === 0) {
         continue;
       }
-      if (!$eventdata->havetime($name)) {
+      if (!$state->eventdata->havetime($name)) {
         continue;
       }
-      $vars['OTHERAVAIL'] .= h4text('Availability of another member:')
+      $vars['OTHERAVAIL'] .= wraptext('h4', 'Availability of another member:')
                           . '<ul type="circle">';
-      foreach ($eventdata->nexttimestr($name) as $timestr) {
-        $vars['OTHERAVAIL'] .= '<li>' . $timestr . '</li>';
+      foreach ($state->eventdata->nexttimestr($name) as $timestr) {
+        $vars['OTHERAVAIL'] .= wraptext('li', $timestr);
       }
       $vars['OTHERAVAIL'] .= '</ul>' . $hline;
     }
