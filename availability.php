@@ -36,6 +36,12 @@
   function wraptext($wrap, $text) {
     return "<$wrap>$text</$wrap>" . PHP_EOL;
   }
+  function possessive($name) {
+    if (substr($name, -1) === 's') {
+      return "$name'";
+    }
+    return "$name's";
+  }
   function initevents() {
     $GLOBALS['events'] = [];
     foreach (glob(join(DIRECTORY_SEPARATOR,
@@ -244,6 +250,9 @@
     public function havetime($name) {
       return array_key_exists($name, $this->times);
     }
+    public function havename($name) {
+      return in_array($name, $this->names);
+    }
     public function nexttimestr($name) {
       foreach ($this->times[$name] as $time) {
         yield $this->time2str($time);
@@ -451,27 +460,37 @@
       $state->eventdata->addtime($state->whoami,
                           $_POST['from'] . '-' . $_POST['until']);
     }
-    $body = $state->eventdata->getbanner()
-            . wraptext('b', $state->whoami . ' availability:')
-            . '<br>';
-    if (!$state->eventdata->havetime($state->whoami)) {
-      $vars['AVAILABILITY'] = '(None currently set)';
+    $body = $state->eventdata->getbanner();
+    if (!$state->eventdata->havename($state->whoami)) {
+      $vars['AVAILABILITY'] = '';
     }
     else {
+      $body .= wraptext('b', possessive($state->whoami) . ' availability:')
+            . '<br>';
       $vars['AVAILABILITY'] = '<ul type="circle">';
-      $counter = 0;
-      $deletebutton = '<button class="delete-button" '
-                    . 'type="button" id="delete-datetime-btn" '
-                    . 'onclick="delete_click(NUM)">'
-                    . '×'
-                    . '</button>';
-      foreach ($state->eventdata->nexttimestr($state->whoami) as $timestr) {
-        $vars['AVAILABILITY'] .= wraptext('li',
-                                          $timestr
-                                          . '&nbsp;&nbsp;'
-                                          . str_replace('NUM', $counter++, $deletebutton));
+      if (!$state->eventdata->havetime($state->whoami)) {
+        $vars['AVAILABILITY'] .= wraptext('li', '(None currently set)');
       }
-      $vars['AVAILABILITY'] .= '</ul>';
+      else {
+        $counter = 0;
+        $deletebutton = '<button class="delete-button" '
+                      . 'type="button" id="delete-datetime-btn" '
+                      . 'onclick="delete_click(NUM)">'
+                      . '×'
+                      . '</button>';
+        foreach ($state->eventdata->nexttimestr($state->whoami) as $timestr) {
+          $vars['AVAILABILITY'] .= wraptext('li',
+                                            $timestr
+                                            . '&nbsp;&nbsp;'
+                                            . str_replace('NUM',
+                                                          $counter++,
+                                                          $deletebutton));
+        }
+      }
+      $vars['AVAILABILITY'] .= '</ul>'
+                            . 'HLINE'
+                            . file_get_contents('pages/timechooser.html')
+                            . 'HLINE';
     }
     $vars['OTHERAVAIL'] = '';
     foreach ($state->eventdata->nextname() as $name) {
@@ -481,7 +500,7 @@
       if (!$state->eventdata->havetime($name)) {
         continue;
       }
-      $vars['OTHERAVAIL'] .= wraptext('h4', 'Availability of another member:')
+      $vars['OTHERAVAIL'] .= wraptext('h4', "Another member's availability:")
                           . '<ul type="circle">';
       foreach ($state->eventdata->nexttimestr($name) as $timestr) {
         $vars['OTHERAVAIL'] .= wraptext('li', $timestr);

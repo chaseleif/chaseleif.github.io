@@ -1,0 +1,43 @@
+<h4>Add availability</h4>
+<!-- Date Range Picker -->
+<div class="date-range-container">
+  <div
+    class="picker-button"
+    id="availabledate"
+    data-picker-type="date"
+    data-disable-weekends="true"
+    data-days-forward="50"
+    data-days-back="0"
+    data-default-today="true">
+    <span class="picker-value">Date</span>
+  </div>
+  <div
+    class="picker-button"
+    id="availablestart"
+    data-range-group="availabletime"
+    data-range="start"
+    data-picker-type="time"
+    data-time-interval="15"
+    data-start-time="09:00"
+    data-end-time="18:00"
+    data-allow-past-times="false"
+    data-linked-to="availabledate">
+    <span class="picker-value">From</span>
+  </div>
+  <div
+    class="picker-button"
+    id="availableend"
+    data-range-group="availabletime"
+    data-range="end"
+    data-picker-type="time"
+    data-time-interval="15"
+    data-start-time="09:00"
+    data-end-time="18:00"
+    data-allow-past-times="false"
+    data-linked-to="availabledate">
+    <span class="picker-value">To</span>
+  </div>
+</div>
+<br>
+<button class="submit-button" type="button" id="submit-datetime-btn">Submit</button>
+<br>
