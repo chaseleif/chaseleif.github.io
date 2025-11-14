@@ -152,6 +152,7 @@
   class EventData {
     private $logfile;
     private $namefile;
+    private $bannerfile;
     private $timefile;
     public $event;
     public $names;
@@ -165,6 +166,7 @@
       $this->owner = $GLOBALS['events'][$event];
       $this->logfile = eventfile($this->event, 'log');
       $this->namefile = eventfile($this->event,'names');
+      $this->bannerfile = eventfile($this->event, 'banner');
       $this->timefile = eventfile($this->event, 'times');
       $this->loadnames();
       $this->loadtimes();
@@ -176,6 +178,16 @@
                             FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES);
         sort($this->names);
       }
+    }
+    public function getbanner() {
+      $banner = '';
+      if (is_file($this->bannerfile)) {
+        $banner = file($this->bannerfile,
+                        FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES);
+        $banner = implode('<br>' . PHP_EOL, $banner);
+        $banner = wraptext('h4', $banner);
+      }
+      return wraptext('h3', $this->event) . $banner . 'HLINE';
     }
     private function loadtimes() {
       $this->times = [];
@@ -384,7 +396,6 @@
     function inputfield($id, $text) {
       return '<input id="' . $id . '" type="text" placeholder="' . $text . '"/>' . PHP_EOL;
     }
-    $hline = '<hr width="50%" color="#008A00" align="left" />' . PHP_EOL;
     $vars['EVENTLIST'] = '';
     foreach ($GLOBALS['events'] as $event => $owner) {
       if (strcmp($event, $GLOBALS['secret']) === 0) {
@@ -426,7 +437,7 @@
         }
         $vars['EVENTLIST'] .= '</ul>';
       }
-      $vars['EVENTLIST'] .= '</ul>' . $hline;
+      $vars['EVENTLIST'] .= '</ul>' . 'HLINE';
     }
     $body = file_get_contents('pages/secret.html');
   }
@@ -440,8 +451,9 @@
       $state->eventdata->addtime($state->whoami,
                           $_POST['from'] . '-' . $_POST['until']);
     }
-    $hline = '<hr width="50%" color="#008A00" align="left" />';
-    $body = wraptext('b', $state->whoami . ' availability:') . '<br>';
+    $body = $state->eventdata->getbanner()
+            . wraptext('b', $state->whoami . ' availability:')
+            . '<br>';
     if (!$state->eventdata->havetime($state->whoami)) {
       $vars['AVAILABILITY'] = '(None currently set)';
     }
@@ -474,12 +486,14 @@
       foreach ($state->eventdata->nexttimestr($name) as $timestr) {
         $vars['OTHERAVAIL'] .= wraptext('li', $timestr);
       }
-      $vars['OTHERAVAIL'] .= '</ul>' . $hline;
+      $vars['OTHERAVAIL'] .= '</ul>' . 'HLINE';
     }
     $body .= file_get_contents('pages/settimes.html');
   }
   $vars['TITLETEXT'] = 'Schedule Availability';
   $vars['DESCRIPTIONTEXT'] = 'Schedule Availability';
+  $vars['HLINE'] =
+      '<hr width="50%" color="#008A00" align="left" />' . PHP_EOL;
   $page = file_get_contents('page.html');
   $page = str_replace('PAGEBODY', $body, $page);
   foreach ($vars as $key => $value) {
