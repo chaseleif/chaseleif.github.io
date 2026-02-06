@@ -1,0 +1,112 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252">
+
+<!-- This HTML file has been created by texi2html 1.44
+     from /opt/src/gnu/flex-2.5.4/MISC/texinfo/flex.texi on 30 June 1997 -->
+
+<title>Flex - a scanner generator - Diagnostics</title>
+</head>
+<body>
+
+Go to the <a href="flex_1.html">first</a>, <a href="flex_20.html">previous</a>, <a href="flex_22.html">next</a>, <a href="flex_25.html">last</a> section, <a href="index.html">table of contents</a>.
+<hr>
+
+<h2><a name="SEC21" href="flex_21.html#SEC21">Diagnostics</a></h2>
+
+<dl compact="compact">
+
+<dt><samp>`warning, rule cannot be matched'</samp>
+</dt><dd>
+indicates that the given
+rule cannot be matched because it follows other rules that
+will always match the same text as it.  For example, in
+the following "foo" cannot be matched because it comes
+after an identifier "catch-all" rule:
+
+<pre>[a-z]+    got_identifier();
+foo       got_foo();
+</pre>
+
+Using <code>REJECT</code> in a scanner suppresses this warning.
+
+</dd><dt><samp>`warning, -s option given but default rule can be matched'</samp>
+</dt><dd>
+means that it is possible (perhaps only in a particular
+start condition) that the default rule (match any single
+character) is the only one that will match a particular
+input.  Since <samp>`-s'</samp> was given, presumably this is not
+intended.
+
+</dd><dt><samp>`reject_used_but_not_detected undefined'</samp>
+</dt><dd>
+</dd><dt><samp>`yymore_used_but_not_detected undefined'</samp>
+</dt><dd>
+These errors can
+occur at compile time.  They indicate that the scanner
+uses <code>REJECT</code> or <samp>`yymore()'</samp> but that <code>flex</code> failed to notice the
+fact, meaning that <code>flex</code> scanned the first two sections
+looking for occurrences of these actions and failed to
+find any, but somehow you snuck some in (via a #include
+file, for example).  Use <samp>`%option reject'</samp> or <samp>`%option yymore'</samp>
+to indicate to flex that you really do use these features.
+
+</dd><dt><samp>`flex scanner jammed'</samp>
+</dt><dd>
+a scanner compiled with <samp>`-s'</samp> has
+encountered an input string which wasn't matched by any of
+its rules.  This error can also occur due to internal
+problems.
+
+</dd><dt><samp>`token too large, exceeds YYLMAX'</samp>
+</dt><dd>
+your scanner uses <samp>`%array'</samp>
+and one of its rules matched a string longer than the <samp>`YYL-'</samp>
+<code>MAX</code> constant (8K bytes by default).  You can increase the
+value by #define'ing <code>YYLMAX</code> in the definitions section of
+your <code>flex</code> input.
+
+</dd><dt><samp>`scanner requires -8 flag to use the character '<var>x</var>''</samp>
+</dt><dd>
+Your
+scanner specification includes recognizing the 8-bit
+character <var>x</var> and you did not specify the -8 flag, and your
+scanner defaulted to 7-bit because you used the <samp>`-Cf'</samp> or <samp>`-CF'</samp>
+table compression options.  See the discussion of the <samp>`-7'</samp>
+flag for details.
+
+</dd><dt><samp>`flex scanner push-back overflow'</samp>
+</dt><dd>
+you used <samp>`unput()'</samp> to push
+back so much text that the scanner's buffer could not hold
+both the pushed-back text and the current token in <code>yytext</code>.
+Ideally the scanner should dynamically resize the buffer
+in this case, but at present it does not.
+
+</dd><dt><samp>`input buffer overflow, can't enlarge buffer because scanner uses REJECT'</samp>
+</dt><dd>
+the scanner was working on matching an
+extremely large token and needed to expand the input
+buffer.  This doesn't work with scanners that use <code>REJECT</code>.
+
+</dd><dt><samp>`fatal flex scanner internal error--end of buffer missed'</samp>
+</dt><dd>
+This can occur in an scanner which is reentered after a
+long-jump has jumped out (or over) the scanner's
+activation frame.  Before reentering the scanner, use:
+
+<pre>yyrestart( yyin );
+</pre>
+
+or, as noted above, switch to using the C++ scanner class.
+
+</dd><dt><samp>`too many start conditions in &lt;&gt; construct!'</samp>
+</dt><dd>
+you listed
+more start conditions in a &lt;&gt; construct than exist (so you
+must have listed at least one of them twice).
+</dd></dl>
+
+<hr>
+Go to the <a href="flex_1.html">first</a>, <a href="flex_20.html">previous</a>, <a href="flex_22.html">next</a>, <a href="flex_25.html">last</a> section, <a href="index.html">table of contents</a>.
+
+</body></html>

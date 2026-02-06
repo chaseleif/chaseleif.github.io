@@ -1,0 +1,90 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252">
+
+<!-- This HTML file has been created by texi2html 1.44
+     from /opt/src/gnu/flex-2.5.4/MISC/texinfo/flex.texi on 30 June 1997 -->
+
+<title>Flex - a scanner generator - Deficiencies / Bugs</title>
+</head>
+<body>
+
+Go to the <a href="flex_1.html">first</a>, <a href="flex_22.html">previous</a>, <a href="flex_24.html">next</a>, <a href="flex_25.html">last</a> section, <a href="index.html">table of contents</a>.
+<hr>
+
+<h2><a name="SEC23" href="flex_23.html#SEC23">Deficiencies / Bugs</a></h2>
+
+<p>
+Some trailing context patterns cannot be properly matched
+and generate warning messages ("dangerous trailing
+context").  These are patterns where the ending of the first
+part of the rule matches the beginning of the second part,
+such as "zx*/xy*", where the 'x*' matches the 'x' at the
+beginning of the trailing context.  (Note that the POSIX
+draft states that the text matched by such patterns is
+undefined.)
+
+</p>
+<p>
+For some trailing context rules, parts which are actually
+fixed-length are not recognized as such, leading to the
+abovementioned performance loss.  In particular, parts
+using '|' or {n} (such as "foo{3}") are always considered
+variable-length.
+
+</p>
+<p>
+Combining trailing context with the special '|' action can
+result in <em>fixed</em> trailing context being turned into the
+more expensive <var>variable</var> trailing context.  For example, in
+the following:
+
+</p>
+
+<pre>%%
+abc      |
+xyz/def
+</pre>
+
+<p>
+Use of <samp>`unput()'</samp> invalidates yytext and yyleng, unless the
+<samp>`%array'</samp> directive or the <samp>`-l'</samp> option has been used.
+
+</p>
+<p>
+Pattern-matching of NUL's is substantially slower than
+matching other characters.
+
+</p>
+<p>
+Dynamic resizing of the input buffer is slow, as it
+entails rescanning all the text matched so far by the
+current (generally huge) token.
+
+</p>
+<p>
+Due to both buffering of input and read-ahead, you cannot
+intermix calls to &lt;stdio.h&gt; routines, such as, for
+example, <samp>`getchar()'</samp>, with <code>flex</code> rules and expect it to work.
+Call <samp>`input()'</samp> instead.
+
+</p>
+<p>
+The total table entries listed by the <samp>`-v'</samp> flag excludes the
+number of table entries needed to determine what rule has
+been matched.  The number of entries is equal to the
+number of DFA states if the scanner does not use <code>REJECT</code>, and
+somewhat greater than the number of states if it does.
+
+</p>
+<p>
+<code>REJECT</code> cannot be used with the <samp>`-f'</samp> or <samp>`-F'</samp> options.
+
+</p>
+<p>
+The <code>flex</code> internal algorithms need documentation.
+
+</p>
+<hr>
+Go to the <a href="flex_1.html">first</a>, <a href="flex_22.html">previous</a>, <a href="flex_24.html">next</a>, <a href="flex_25.html">last</a> section, <a href="index.html">table of contents</a>.
+
+</body></html>

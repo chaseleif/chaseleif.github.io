@@ -1,0 +1,125 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252">
+
+<!-- This HTML file has been created by texi2html 1.44
+     from /opt/src/gnu/bison-1.25/bison.texinfo on 30 June 1997 -->
+
+<title>Bison 1.25 - Debugging Your Parser</title>
+</head>
+<body>
+
+Go to the <a href="bison_1.html">first</a>, <a href="bison_10.html">previous</a>, <a href="bison_12.html">next</a>, <a href="bison_15.html">last</a> section, <a href="index.html">table of contents</a>.
+<hr>
+
+<h1><a name="SEC86" href="index.html#SEC86">Debugging Your Parser</a></h1>
+<p>
+<a name="IDX187"></a>
+<a name="IDX188"></a>
+<a name="IDX189"></a>
+<a name="IDX190"></a>
+
+</p>
+<p>
+If a Bison grammar compiles properly but doesn't do what you want when it
+runs, the <code>yydebug</code> parser-trace feature can help you figure out why.
+
+</p>
+<p>
+To enable compilation of trace facilities, you must define the macro
+<code>YYDEBUG</code> when you compile the parser.  You could use
+<samp>`-DYYDEBUG=1'</samp> as a compiler option or you could put <samp>`#define
+YYDEBUG 1'</samp> in the C declarations section of the grammar file
+(see section <a href="bison_6.html#SEC36">The C Declarations Section</a>).  Alternatively, use the <samp>`-t'</samp> option when
+you run Bison (see section <a href="bison_12.html#SEC87">Invoking Bison</a>).  We always define <code>YYDEBUG</code> so that
+debugging is always possible.
+
+</p>
+<p>
+The trace facility uses <code>stderr</code>, so you must add <code>#include
+&lt;stdio.h&gt;</code> to the C declarations section unless it is already there.
+
+</p>
+<p>
+Once you have compiled the program with trace facilities, the way to
+request a trace is to store a nonzero value in the variable <code>yydebug</code>.
+You can do this by making the C code do it (in <code>main</code>, perhaps), or
+you can alter the value with a C debugger.
+
+</p>
+<p>
+Each step taken by the parser when <code>yydebug</code> is nonzero produces a
+line or two of trace information, written on <code>stderr</code>.  The trace
+messages tell you these things:
+
+</p>
+
+<ul>
+<li>
+
+Each time the parser calls <code>yylex</code>, what kind of token was read.
+
+</li><li>
+
+Each time a token is shifted, the depth and complete contents of the
+state stack (see section <a href="bison_8.html#SEC77">Parser States</a>).
+
+</li><li>
+
+Each time a rule is reduced, which rule it is, and the complete contents
+of the state stack afterward.
+</li></ul>
+
+<p>
+To make sense of this information, it helps to refer to the listing file
+produced by the Bison <samp>`-v'</samp> option (see section <a href="bison_12.html#SEC87">Invoking Bison</a>).  This file
+shows the meaning of each state in terms of positions in various rules, and
+also what each state will do with each possible input token.  As you read
+the successive trace messages, you can see that the parser is functioning
+according to its specification in the listing file.  Eventually you will
+arrive at the place where something undesirable happens, and you will see
+which parts of the grammar are to blame.
+
+</p>
+<p>
+The parser file is a C program and you can use C debuggers on it, but it's
+not easy to interpret what it is doing.  The parser function is a
+finite-state machine interpreter, and aside from the actions it executes
+the same code over and over.  Only the values of variables show where in
+the grammar it is working.
+
+</p>
+<p>
+<a name="IDX191"></a>
+The debugging information normally gives the token type of each token
+read, but not its semantic value.  You can optionally define a macro
+named <code>YYPRINT</code> to provide a way to print the value.  If you define
+<code>YYPRINT</code>, it should take three arguments.  The parser will pass a
+standard I/O stream, the numeric code for the token type, and the token
+value (from <code>yylval</code>).
+
+</p>
+<p>
+Here is an example of <code>YYPRINT</code> suitable for the multi-function
+calculator (see section <a href="bison_5.html#SEC30">Declarations for <code>mfcalc</code></a>):
+
+</p>
+
+<pre>#define YYPRINT(file, type, value)   yyprint (file, type, value)
+
+static void
+yyprint (file, type, value)
+     FILE *file;
+     int type;
+     YYSTYPE value;
+{
+  if (type == VAR)
+    fprintf (file, " %s", value.tptr-&gt;name);
+  else if (type == NUM)
+    fprintf (file, " %d", value.val);
+}
+</pre>
+
+<hr>
+Go to the <a href="bison_1.html">first</a>, <a href="bison_10.html">previous</a>, <a href="bison_12.html">next</a>, <a href="bison_15.html">last</a> section, <a href="index.html">table of contents</a>.
+
+</body></html>

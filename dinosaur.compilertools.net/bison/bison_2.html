@@ -1,0 +1,52 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252">
+
+<!-- This HTML file has been created by texi2html 1.44
+     from /opt/src/gnu/bison-1.25/bison.texinfo on 30 June 1997 -->
+
+<title>Bison 1.25 - Conditions for Using Bison</title>
+</head>
+<body>
+
+Go to the <a href="bison_1.html">first</a>, <a href="bison_1.html">previous</a>, <a href="bison_3.html">next</a>, <a href="bison_15.html">last</a> section, <a href="index.html">table of contents</a>.
+<hr>
+
+<h1><a name="SEC2" href="index.html#SEC2">Conditions for Using Bison</a></h1>
+
+<p>
+As of Bison version 1.24, we have changed the distribution terms for
+<code>yyparse</code> to permit using Bison's output in non-free programs.
+Formerly, Bison parsers could be used only in programs that were free
+software.
+
+</p>
+<p>
+The other GNU programming tools, such as the GNU C compiler, have never
+had such a requirement.  They could always be used for non-free
+software.  The reason Bison was different was not due to a special
+policy decision; it resulted from applying the usual General Public
+License to all of the Bison source code.
+
+</p>
+<p>
+The output of the Bison utility--the Bison parser file--contains a
+verbatim copy of a sizable piece of Bison, which is the code for the
+<code>yyparse</code> function.  (The actions from your grammar are inserted
+into this function at one point, but the rest of the function is not
+changed.)  When we applied the GPL terms to the code for <code>yyparse</code>,
+the effect was to restrict the use of Bison output to free software.
+
+</p>
+<p>
+We didn't change the terms because of sympathy for people who want to
+make software proprietary.  <strong>Software should be free.</strong>  But we
+concluded that limiting Bison's use to free software was doing little to
+encourage people to make other software free.  So we decided to make the
+practical conditions for using Bison match the practical conditions for
+using the other GNU tools.
+
+</p>
+<hr>
+Go to the <a href="bison_1.html">first</a>, <a href="bison_1.html">previous</a>, <a href="bison_3.html">next</a>, <a href="bison_15.html">last</a> section, <a href="index.html">table of contents</a>.
+
+</body></html>

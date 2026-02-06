@@ -1,0 +1,95 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252">
+
+<!-- This HTML file has been created by texi2html 1.44
+     from /opt/src/gnu/flex-2.5.4/MISC/texinfo/flex.texi on 30 June 1997 -->
+
+<title>Flex - a scanner generator - Miscellaneous macros</title>
+</head>
+<body>
+
+Go to the <a href="flex_1.html">first</a>, <a href="flex_13.html">previous</a>, <a href="flex_15.html">next</a>, <a href="flex_25.html">last</a> section, <a href="index.html">table of contents</a>.
+<hr>
+
+<h2><a name="SEC14" href="flex_14.html#SEC14">Miscellaneous macros</a></h2>
+
+<p>
+The macro <code>YY_USER_ACTION</code> can be defined to provide an
+action which is always executed prior to the matched
+rule's action.  For example, it could be #define'd to call
+a routine to convert yytext to lower-case.  When
+<code>YY_USER_ACTION</code> is invoked, the variable <code>yy_act</code> gives the
+number of the matched rule (rules are numbered starting
+with 1).  Suppose you want to profile how often each of
+your rules is matched.  The following would do the trick:
+
+</p>
+
+<pre>#define YY_USER_ACTION ++ctr[yy_act]
+</pre>
+
+<p>
+where <code>ctr</code> is an array to hold the counts for the different
+rules.  Note that the macro <code>YY_NUM_RULES</code> gives the total number
+of rules (including the default rule, even if you use <samp>`-s'</samp>, so
+a correct declaration for <code>ctr</code> is:
+
+</p>
+
+<pre>int ctr[YY_NUM_RULES];
+</pre>
+
+<p>
+The macro <code>YY_USER_INIT</code> may be defined to provide an action
+which is always executed before the first scan (and before
+the scanner's internal initializations are done).  For
+example, it could be used to call a routine to read in a
+data table or open a logging file.
+
+</p>
+<p>
+The macro <samp>`yy_set_interactive(is_interactive)'</samp> can be used
+to control whether the current buffer is considered
+<em>interactive</em>.  An interactive buffer is processed more slowly,
+but must be used when the scanner's input source is indeed
+interactive to avoid problems due to waiting to fill
+buffers (see the discussion of the <samp>`-I'</samp> flag below).  A
+non-zero value in the macro invocation marks the buffer as
+interactive, a zero value as non-interactive.  Note that
+use of this macro overrides <samp>`%option always-interactive'</samp> or
+<samp>`%option never-interactive'</samp> (see Options below).
+<samp>`yy_set_interactive()'</samp> must be invoked prior to beginning to
+scan the buffer that is (or is not) to be considered
+interactive.
+
+</p>
+<p>
+The macro <samp>`yy_set_bol(at_bol)'</samp> can be used to control
+whether the current buffer's scanning context for the next
+token match is done as though at the beginning of a line.
+A non-zero macro argument makes rules anchored with
+
+</p>
+<p>
+The macro <samp>`YY_AT_BOL()'</samp> returns true if the next token
+scanned from the current buffer will have '^' rules
+active, false otherwise.
+
+</p>
+<p>
+In the generated scanner, the actions are all gathered in
+one large switch statement and separated using <code>YY_BREAK</code>,
+which may be redefined.  By default, it is simply a
+"break", to separate each rule's action from the following
+rule's.  Redefining <code>YY_BREAK</code> allows, for example, C++
+users to #define YY_BREAK to do nothing (while being very
+careful that every rule ends with a "break" or a
+"return"!) to avoid suffering from unreachable statement
+warnings where because a rule's action ends with "return",
+the <code>YY_BREAK</code> is inaccessible.
+
+</p>
+<hr>
+Go to the <a href="flex_1.html">first</a>, <a href="flex_13.html">previous</a>, <a href="flex_15.html">next</a>, <a href="flex_25.html">last</a> section, <a href="index.html">table of contents</a>.
+
+</body></html>

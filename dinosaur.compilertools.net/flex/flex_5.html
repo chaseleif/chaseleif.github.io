@@ -1,0 +1,141 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252">
+
+<!-- This HTML file has been created by texi2html 1.44
+     from /opt/src/gnu/flex-2.5.4/MISC/texinfo/flex.texi on 30 June 1997 -->
+
+<title>Flex - a scanner generator - Some simple examples</title>
+</head>
+<body>
+
+Go to the <a href="flex_1.html">first</a>, <a href="flex_4.html">previous</a>, <a href="flex_6.html">next</a>, <a href="flex_25.html">last</a> section, <a href="index.html">table of contents</a>.
+<hr>
+
+<h2><a name="SEC5" href="flex_5.html#SEC5">Some simple examples</a></h2>
+
+<p>
+First some simple examples to get the flavor of how one
+uses <code>flex</code>.  The following <code>flex</code> input specifies a scanner
+which whenever it encounters the string "username" will
+replace it with the user's login name:
+
+</p>
+
+<pre>%%
+username    printf( "%s", getlogin() );
+</pre>
+
+<p>
+By default, any text not matched by a <code>flex</code> scanner is
+copied to the output, so the net effect of this scanner is
+to copy its input file to its output with each occurrence
+of "username" expanded.  In this input, there is just one
+rule.  "username" is the <var>pattern</var> and the "printf" is the
+<var>action</var>.  The "%%" marks the beginning of the rules.
+
+</p>
+<p>
+Here's another simple example:
+
+</p>
+
+<pre>        int num_lines = 0, num_chars = 0;
+
+%%
+\n      ++num_lines; ++num_chars;
+.       ++num_chars;
+
+%%
+main()
+        {
+        yylex();
+        printf( "# of lines = %d, # of chars = %d\n",
+                num_lines, num_chars );
+        }
+</pre>
+
+<p>
+This scanner counts the number of characters and the
+number of lines in its input (it produces no output other
+than the final report on the counts).  The first line
+declares two globals, "num_lines" and "num_chars", which
+are accessible both inside <samp>`yylex()'</samp> and in the <samp>`main()'</samp>
+routine declared after the second "%%".  There are two rules,
+one which matches a newline ("\n") and increments both the
+line count and the character count, and one which matches
+any character other than a newline (indicated by the "."
+regular expression).
+
+</p>
+<p>
+A somewhat more complicated example:
+
+</p>
+
+<pre>/* scanner for a toy Pascal-like language */
+
+%{
+/* need this for the call to atof() below */
+#include &lt;math.h&gt;
+%}
+
+DIGIT    [0-9]
+ID       [a-z][a-z0-9]*
+
+%%
+
+{DIGIT}+    {
+            printf( "An integer: %s (%d)\n", yytext,
+                    atoi( yytext ) );
+            }
+
+{DIGIT}+"."{DIGIT}*        {
+            printf( "A float: %s (%g)\n", yytext,
+                    atof( yytext ) );
+            }
+
+if|then|begin|end|procedure|function        {
+            printf( "A keyword: %s\n", yytext );
+            }
+
+{ID}        printf( "An identifier: %s\n", yytext );
+
+"+"|"-"|"*"|"/"   printf( "An operator: %s\n", yytext );
+
+"{"[^}\n]*"}"     /* eat up one-line comments */
+
+[ \t\n]+          /* eat up whitespace */
+
+.           printf( "Unrecognized character: %s\n", yytext );
+
+%%
+
+main( argc, argv )
+int argc;
+char **argv;
+    {
+    ++argv, --argc;  /* skip over program name */
+    if ( argc &gt; 0 )
+            yyin = fopen( argv[0], "r" );
+    else
+            yyin = stdin;
+
+    yylex();
+    }
+</pre>
+
+<p>
+This is the beginnings of a simple scanner for a language
+like Pascal.  It identifies different types of <var>tokens</var> and
+reports on what it has seen.
+
+</p>
+<p>
+The details of this example will be explained in the
+following sections.
+
+</p>
+<hr>
+Go to the <a href="flex_1.html">first</a>, <a href="flex_4.html">previous</a>, <a href="flex_6.html">next</a>, <a href="flex_25.html">last</a> section, <a href="index.html">table of contents</a>.
+
+</body></html>

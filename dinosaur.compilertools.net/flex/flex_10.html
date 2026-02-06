@@ -1,0 +1,151 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252">
+
+<!-- This HTML file has been created by texi2html 1.44
+     from /opt/src/gnu/flex-2.5.4/MISC/texinfo/flex.texi on 30 June 1997 -->
+
+<title>Flex - a scanner generator - The generated scanner</title>
+</head>
+<body>
+
+Go to the <a href="flex_1.html">first</a>, <a href="flex_9.html">previous</a>, <a href="flex_11.html">next</a>, <a href="flex_25.html">last</a> section, <a href="index.html">table of contents</a>.
+<hr>
+
+<h2><a name="SEC10" href="flex_10.html#SEC10">The generated scanner</a></h2>
+
+<p>
+The output of <code>flex</code> is the file <tt>`lex.yy.c'</tt>, which contains
+the scanning routine <samp>`yylex()'</samp>, a number of tables used by
+it for matching tokens, and a number of auxiliary routines
+and macros.  By default, <samp>`yylex()'</samp> is declared as follows:
+
+</p>
+
+<pre>int yylex()
+    {
+    ... various definitions and the actions in here ...
+    }
+</pre>
+
+<p>
+(If your environment supports function prototypes, then it
+will be "int yylex( void  )".)   This  definition  may  be
+changed by defining the "YY_DECL" macro.  For example, you
+could use:
+
+</p>
+
+<pre>#define YY_DECL float lexscan( a, b ) float a, b;
+</pre>
+
+<p>
+to give the scanning routine the name <code>lexscan</code>, returning a
+float, and taking two floats as arguments.  Note that if
+you give arguments to the scanning routine using a
+K&amp;R-style/non-prototyped function declaration, you must
+terminate the definition with a semi-colon (<samp>`;'</samp>).
+
+</p>
+<p>
+Whenever <samp>`yylex()'</samp> is called, it scans tokens from the
+global input file <code>yyin</code> (which defaults to stdin).  It
+continues until it either reaches an end-of-file (at which
+point it returns the value 0) or one of its actions
+executes a <code>return</code> statement.
+
+</p>
+<p>
+If the scanner reaches an end-of-file, subsequent calls are undefined
+unless either <code>yyin</code> is pointed at a new input file (in which case
+scanning continues from that file), or <samp>`yyrestart()'</samp> is called.
+<samp>`yyrestart()'</samp> takes one argument, a <samp>`FILE *'</samp> pointer (which
+can be nil, if you've set up <code>YY_INPUT</code> to scan from a source
+other than <code>yyin</code>), and initializes <code>yyin</code> for scanning from
+that file.  Essentially there is no difference between just assigning
+<code>yyin</code> to a new input file or using <samp>`yyrestart()'</samp> to do so;
+the latter is available for compatibility with previous versions of
+<code>flex</code>, and because it can be used to switch input files in the
+middle of scanning.  It can also be used to throw away the current
+input buffer, by calling it with an argument of <code>yyin</code>; but
+better is to use <code>YY_FLUSH_BUFFER</code> (see above).  Note that
+<samp>`yyrestart()'</samp> does <em>not</em> reset the start condition to
+<code>INITIAL</code> (see Start Conditions, below).
+
+</p>
+
+<p>
+If <samp>`yylex()'</samp> stops scanning due to executing a <code>return</code>
+statement in one of the actions, the scanner may then be called
+again and it will resume scanning where it left off.
+
+</p>
+<p>
+By default (and for purposes of efficiency), the scanner
+uses block-reads rather than simple <samp>`getc()'</samp> calls to read
+characters from <code>yyin</code>.  The nature of how it gets its input
+can be controlled by defining the <code>YY_INPUT</code> macro.
+YY_INPUT's calling sequence is
+"YY_INPUT(buf,result,max_size)".  Its action is to place
+up to <var>max_size</var> characters in the character array <var>buf</var> and
+return in the integer variable <var>result</var> either the number of
+characters read or the constant YY_NULL (0 on Unix
+systems) to indicate EOF.  The default YY_INPUT reads from
+the global file-pointer "yyin".
+
+</p>
+<p>
+A sample definition of YY_INPUT (in the definitions
+section of the input file):
+
+</p>
+
+<pre>%{
+#define YY_INPUT(buf,result,max_size) \
+    { \
+    int c = getchar(); \
+    result = (c == EOF) ? YY_NULL : (buf[0] = c, 1); \
+    }
+%}
+</pre>
+
+<p>
+This definition will change the input processing to occur
+one character at a time.
+
+</p>
+<p>
+When the scanner receives an end-of-file indication from
+YY_INPUT, it then checks the <samp>`yywrap()'</samp> function.  If
+<samp>`yywrap()'</samp> returns false (zero), then it is assumed that the
+function has gone ahead and set up <code>yyin</code> to point to
+another input file, and scanning continues.  If it returns
+true (non-zero), then the scanner terminates, returning 0
+to its caller.  Note that in either case, the start
+condition remains unchanged; it does <em>not</em> revert to <code>INITIAL</code>.
+
+</p>
+<p>
+If you do not supply your own version of <samp>`yywrap()'</samp>, then you
+must either use <samp>`%option noyywrap'</samp> (in which case the scanner
+behaves as though <samp>`yywrap()'</samp> returned 1), or you must link with
+<samp>`-lfl'</samp> to obtain the default version of the routine, which always
+returns 1.
+
+</p>
+<p>
+Three routines are available for scanning from in-memory
+buffers rather than files: <samp>`yy_scan_string()'</samp>,
+<samp>`yy_scan_bytes()'</samp>, and <samp>`yy_scan_buffer()'</samp>.  See the discussion
+of them below in the section Multiple Input Buffers.
+
+</p>
+<p>
+The scanner writes its <samp>`ECHO'</samp> output to the <code>yyout</code> global
+(default, stdout), which may be redefined by the user
+simply by assigning it to some other <code>FILE</code> pointer.
+
+</p>
+<hr>
+Go to the <a href="flex_1.html">first</a>, <a href="flex_9.html">previous</a>, <a href="flex_11.html">next</a>, <a href="flex_25.html">last</a> section, <a href="index.html">table of contents</a>.
+
+</body></html>

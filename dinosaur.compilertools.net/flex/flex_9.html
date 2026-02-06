@@ -1,0 +1,303 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252">
+
+<!-- This HTML file has been created by texi2html 1.44
+     from /opt/src/gnu/flex-2.5.4/MISC/texinfo/flex.texi on 30 June 1997 -->
+
+<title>Flex - a scanner generator - Actions</title>
+</head>
+<body>
+
+Go to the <a href="flex_1.html">first</a>, <a href="flex_8.html">previous</a>, <a href="flex_10.html">next</a>, <a href="flex_25.html">last</a> section, <a href="index.html">table of contents</a>.
+<hr>
+
+<h2><a name="SEC9" href="flex_9.html#SEC9">Actions</a></h2>
+
+<p>
+Each pattern in a rule has a corresponding action, which
+can be any arbitrary C statement.  The pattern ends at the
+first non-escaped whitespace character; the remainder of
+the line is its action.  If the action is empty, then when
+the pattern is matched the input token is simply
+discarded.  For example, here is the specification for a
+program which deletes all occurrences of "zap me" from its
+input:
+
+</p>
+
+<pre>%%
+"zap me"
+</pre>
+
+<p>
+(It will copy all other characters in the input to the
+output since they will be matched by the default rule.)
+
+</p>
+<p>
+Here is a program which compresses multiple blanks and
+tabs down to a single blank, and throws away whitespace
+found at the end of a line:
+
+</p>
+
+<pre>%%
+[ \t]+        putchar( ' ' );
+[ \t]+$       /* ignore this token */
+</pre>
+
+<p>
+If the action contains a '{', then the action spans till
+the balancing '}' is found, and the action may cross
+multiple lines.  <code>flex</code> knows about C strings and comments and
+won't be fooled by braces found within them, but also
+allows actions to begin with <samp>`%{'</samp> and will consider the
+action to be all the text up to the next <samp>`%}'</samp> (regardless of
+ordinary braces inside the action).
+
+</p>
+<p>
+An action consisting solely of a vertical bar ('|') means
+"same as the action for the next rule." See below for an
+illustration.
+
+</p>
+<p>
+Actions can include arbitrary C code, including <code>return</code>
+statements to return a value to whatever routine called
+<samp>`yylex()'</samp>.  Each time <samp>`yylex()'</samp> is called it continues
+processing tokens from where it last left off until it either
+reaches the end of the file or executes a return.
+
+</p>
+<p>
+Actions are free to modify <code>yytext</code> except for lengthening
+it (adding characters to its end--these will overwrite
+later characters in the input stream).  This however does
+not apply when using <samp>`%array'</samp> (see above); in that case,
+<code>yytext</code> may be freely modified in any way.
+
+</p>
+<p>
+Actions are free to modify <code>yyleng</code> except they should not
+do so if the action also includes use of <samp>`yymore()'</samp> (see
+below).
+
+</p>
+<p>
+There are a number of special directives which can be
+included within an action:
+
+</p>
+
+<ul>
+<li>
+
+<samp>`ECHO'</samp> copies yytext to the scanner's output.
+
+</li><li>
+
+<code>BEGIN</code> followed by the name of a start condition
+places the scanner in the corresponding start
+condition (see below).
+
+</li><li>
+
+<code>REJECT</code> directs the scanner to proceed on to the
+"second best" rule which matched the input (or a
+prefix of the input).  The rule is chosen as
+described above in "How the Input is Matched", and
+<code>yytext</code> and <code>yyleng</code> set up appropriately.  It may
+either be one which matched as much text as the
+originally chosen rule but came later in the <code>flex</code>
+input file, or one which matched less text.  For
+example, the following will both count the words in
+the input and call the routine special() whenever
+"frob" is seen:
+
+<pre>        int word_count = 0;
+%%
+
+frob        special(); REJECT;
+[^ \t\n]+   ++word_count;
+</pre>
+
+Without the <code>REJECT</code>, any "frob"'s in the input would
+not be counted as words, since the scanner normally
+executes only one action per token.  Multiple
+<code>REJECT's</code> are allowed, each one finding the next
+best choice to the currently active rule.  For
+example, when the following scanner scans the token
+"abcd", it will write "abcdabcaba" to the output:
+
+<pre>%%
+a        |
+ab       |
+abc      |
+abcd     ECHO; REJECT;
+.|\n     /* eat up any unmatched character */
+</pre>
+
+(The first three rules share the fourth's action
+since they use the special '|' action.)  <code>REJECT</code> is
+a particularly expensive feature in terms of
+scanner performance; if it is used in <em>any</em> of the
+scanner's actions it will slow down <em>all</em> of the
+scanner's matching.  Furthermore, <code>REJECT</code> cannot be used
+with the <samp>`-Cf'</samp> or <samp>`-CF'</samp> options (see below).
+
+Note also that unlike the other special actions,
+<code>REJECT</code> is a <em>branch</em>; code immediately following it
+in the action will <em>not</em> be executed.
+
+</li><li>
+
+<samp>`yymore()'</samp> tells the scanner that the next time it
+matches a rule, the corresponding token should be
+<em>appended</em> onto the current value of <code>yytext</code> rather
+than replacing it.  For example, given the input
+"mega-kludge" the following will write
+"mega-mega-kludge" to the output:
+
+<pre>%%
+mega-    ECHO; yymore();
+kludge   ECHO;
+</pre>
+
+First "mega-" is matched and echoed to the output.
+Then "kludge" is matched, but the previous "mega-"
+is still hanging around at the beginning of <code>yytext</code>
+so the <samp>`ECHO'</samp> for the "kludge" rule will actually
+write "mega-kludge".
+</li></ul>
+
+<p>
+Two notes regarding use of <samp>`yymore()'</samp>.  First, <samp>`yymore()'</samp>
+depends on the value of <code>yyleng</code> correctly reflecting the
+size of the current token, so you must not modify <code>yyleng</code>
+if you are using <samp>`yymore()'</samp>.  Second, the presence of
+<samp>`yymore()'</samp> in the scanner's action entails a minor
+performance penalty in the scanner's matching speed.
+
+</p>
+
+<ul>
+<li>
+
+<samp>`yyless(n)'</samp> returns all but the first <var>n</var> characters of
+the current token back to the input stream, where
+they will be rescanned when the scanner looks for
+the next match.  <code>yytext</code> and <code>yyleng</code> are adjusted
+appropriately (e.g., <code>yyleng</code> will now be equal to <var>n</var>
+).  For example, on the input "foobar" the
+following will write out "foobarbar":
+
+<pre>%%
+foobar    ECHO; yyless(3);
+[a-z]+    ECHO;
+</pre>
+
+An argument of 0 to <code>yyless</code> will cause the entire
+current input string to be scanned again.  Unless
+you've changed how the scanner will subsequently
+process its input (using <code>BEGIN</code>, for example), this
+will result in an endless loop.
+
+Note that <code>yyless</code> is a macro and can only be used in the
+flex input file, not from other source files.
+
+</li><li>
+
+<samp>`unput(c)'</samp> puts the character <code>c</code> back onto the input
+stream.  It will be the next character scanned.
+The following action will take the current token
+and cause it to be rescanned enclosed in
+parentheses.
+
+<pre>{
+int i;
+/* Copy yytext because unput() trashes yytext */
+char *yycopy = strdup( yytext );
+unput( ')' );
+for ( i = yyleng - 1; i &gt;= 0; --i )
+    unput( yycopy[i] );
+unput( '(' );
+free( yycopy );
+}
+</pre>
+
+Note that since each <samp>`unput()'</samp> puts the given
+character back at the <em>beginning</em> of the input stream,
+pushing back strings must be done back-to-front.
+An important potential problem when using <samp>`unput()'</samp> is that
+if you are using <samp>`%pointer'</samp> (the default), a call to <samp>`unput()'</samp>
+<em>destroys</em> the contents of <code>yytext</code>, starting with its
+rightmost character and devouring one character to the left
+with each call.  If you need the value of yytext preserved
+after a call to <samp>`unput()'</samp> (as in the above example), you
+must either first copy it elsewhere, or build your scanner
+using <samp>`%array'</samp> instead (see How The Input Is Matched).
+
+Finally, note that you cannot put back <code>EOF</code> to attempt to
+mark the input stream with an end-of-file.
+
+</li><li>
+
+<samp>`input()'</samp> reads the next character from the input
+stream.  For example, the following is one way to
+eat up C comments:
+
+<pre>%%
+"/*"        {
+            register int c;
+
+            for ( ; ; )
+                {
+                while ( (c = input()) != '*' &amp;&amp;
+                        c != EOF )
+                    ;    /* eat up text of comment */
+
+                if ( c == '*' )
+                    {
+                    while ( (c = input()) == '*' )
+                        ;
+                    if ( c == '/' )
+                        break;    /* found the end */
+                    }
+
+                if ( c == EOF )
+                    {
+                    error( "EOF in comment" );
+                    break;
+                    }
+                }
+            }
+</pre>
+
+(Note that if the scanner is compiled using <samp>`C++'</samp>,
+then <samp>`input()'</samp> is instead referred to as <samp>`yyinput()'</samp>,
+in order to avoid a name clash with the <samp>`C++'</samp> stream
+by the name of <code>input</code>.)
+
+</li><li>YY_FLUSH_BUFFER
+
+flushes the scanner's internal buffer so that the next time the scanner
+attempts to match a token, it will first refill the buffer using
+<code>YY_INPUT</code> (see The Generated Scanner, below).  This action is
+a special case of the more general <samp>`yy_flush_buffer()'</samp> function,
+described below in the section Multiple Input Buffers.
+
+</li><li>
+
+<samp>`yyterminate()'</samp> can be used in lieu of a return
+statement in an action.  It terminates the scanner
+and returns a 0 to the scanner's caller, indicating
+"all done".  By default, <samp>`yyterminate()'</samp> is also
+called when an end-of-file is encountered.  It is a
+macro and may be redefined.
+</li></ul>
+
+<hr>
+Go to the <a href="flex_1.html">first</a>, <a href="flex_8.html">previous</a>, <a href="flex_10.html">next</a>, <a href="flex_25.html">last</a> section, <a href="index.html">table of contents</a>.
+
+</body></html>

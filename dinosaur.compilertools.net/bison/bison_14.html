@@ -1,0 +1,207 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252">
+
+<!-- This HTML file has been created by texi2html 1.44
+     from /opt/src/gnu/bison-1.25/bison.texinfo on 30 June 1997 -->
+
+<title>Bison 1.25 - Glossary</title>
+</head>
+<body>
+
+Go to the <a href="bison_1.html">first</a>, <a href="bison_13.html">previous</a>, <a href="bison_15.html">next</a>, <a href="bison_15.html">last</a> section, <a href="index.html">table of contents</a>.
+<hr>
+
+<h1><a name="SEC92" href="index.html#SEC92">Glossary</a></h1>
+<p>
+<a name="IDX199"></a>
+
+</p>
+<dl compact="compact">
+
+<dt>Backus-Naur Form (BNF)
+</dt><dd>
+Formal method of specifying context-free grammars.  BNF was first used
+in the <cite>ALGOL-60</cite> report, 1963.  See section <a href="bison_4.html#SEC8">Languages and Context-Free Grammars</a>.
+
+</dd><dt>Context-free grammars
+</dt><dd>
+Grammars specified as rules that can be applied regardless of context.
+Thus, if there is a rule which says that an integer can be used as an
+expression, integers are allowed <em>anywhere</em> an expression is
+permitted.  See section <a href="bison_4.html#SEC8">Languages and Context-Free Grammars</a>.
+
+</dd><dt>Dynamic allocation
+</dt><dd>
+Allocation of memory that occurs during execution, rather than at
+compile time or on entry to a function.
+
+</dd><dt>Empty string
+</dt><dd>
+Analogous to the empty set in set theory, the empty string is a
+character string of length zero.
+
+</dd><dt>Finite-state stack machine
+</dt><dd>
+A "machine" that has discrete states in which it is said to exist at
+each instant in time.  As input to the machine is processed, the
+machine moves from state to state as specified by the logic of the
+machine.  In the case of the parser, the input is the language being
+parsed, and the states correspond to various stages in the grammar
+rules.  See section <a href="bison_8.html#SEC68">The Bison Parser Algorithm</a>.
+
+</dd><dt>Grouping
+</dt><dd>
+A language construct that is (in general) grammatically divisible;
+for example, `expression' or `declaration' in C.
+See section <a href="bison_4.html#SEC8">Languages and Context-Free Grammars</a>.
+
+</dd><dt>Infix operator
+</dt><dd>
+An arithmetic operator that is placed between the operands on which it
+performs some operation.
+
+</dd><dt>Input stream
+</dt><dd>
+A continuous flow of data between devices or programs.
+
+</dd><dt>Language construct
+</dt><dd>
+One of the typical usage schemas of the language.  For example, one of
+the constructs of the C language is the <code>if</code> statement.
+See section <a href="bison_4.html#SEC8">Languages and Context-Free Grammars</a>.
+
+</dd><dt>Left associativity
+</dt><dd>
+Operators having left associativity are analyzed from left to right:
+<samp>`a+b+c'</samp> first computes <samp>`a+b'</samp> and then combines with
+<samp>`c'</samp>.  See section <a href="bison_8.html#SEC71">Operator Precedence</a>.
+
+</dd><dt>Left recursion
+</dt><dd>
+A rule whose result symbol is also its first component symbol;
+for example, <samp>`expseq1 : expseq1 ',' exp;'</samp>.  See section <a href="bison_6.html#SEC42">Recursive Rules</a>.
+
+</dd><dt>Left-to-right parsing
+</dt><dd>
+Parsing a sentence of a language by analyzing it token by token from
+left to right.  See section <a href="bison_8.html#SEC68">The Bison Parser Algorithm</a>.
+
+</dd><dt>Lexical analyzer (scanner)
+</dt><dd>
+A function that reads an input stream and returns tokens one by one.
+See section <a href="bison_7.html#SEC61">The Lexical Analyzer Function <code>yylex</code></a>.
+
+</dd><dt>Lexical tie-in
+</dt><dd>
+A flag, set by actions in the grammar rules, which alters the way
+tokens are parsed.  See section <a href="bison_10.html#SEC84">Lexical Tie-ins</a>.
+
+</dd><dt>Literal string token
+</dt><dd>
+A token which constists of two or more fixed characters.
+See section <a href="bison_6.html#SEC40">Symbols, Terminal and Nonterminal</a>.
+
+</dd><dt>Look-ahead token
+</dt><dd>
+A token already read but not yet shifted.  See section <a href="bison_8.html#SEC69">Look-Ahead Tokens</a>.
+
+</dd><dt>LALR(1)
+</dt><dd>
+The class of context-free grammars that Bison (like most other parser
+generators) can handle; a subset of LR(1).  See section <a href="bison_8.html#SEC79">Mysterious Reduce/Reduce Conflicts</a>.
+
+</dd><dt>LR(1)
+</dt><dd>
+The class of context-free grammars in which at most one token of
+look-ahead is needed to disambiguate the parsing of any piece of input.
+
+</dd><dt>Nonterminal symbol
+</dt><dd>
+A grammar symbol standing for a grammatical construct that can
+be expressed through rules in terms of smaller constructs; in other
+words, a construct that is not a token.  See section <a href="bison_6.html#SEC40">Symbols, Terminal and Nonterminal</a>.
+
+</dd><dt>Parse error
+</dt><dd>
+An error encountered during parsing of an input stream due to invalid
+syntax.  See section <a href="bison_9.html#SEC81">Error Recovery</a>.
+
+</dd><dt>Parser
+</dt><dd>
+A function that recognizes valid sentences of a language by analyzing
+the syntax structure of a set of tokens passed to it from a lexical
+analyzer.
+
+</dd><dt>Postfix operator
+</dt><dd>
+An arithmetic operator that is placed after the operands upon which it
+performs some operation.
+
+</dd><dt>Reduction
+</dt><dd>
+Replacing a string of nonterminals and/or terminals with a single
+nonterminal, according to a grammar rule.  See section <a href="bison_8.html#SEC68">The Bison Parser Algorithm</a>.
+
+</dd><dt>Reentrant
+</dt><dd>
+A reentrant subprogram is a subprogram which can be in invoked any
+number of times in parallel, without interference between the various
+invocations.  See section <a href="bison_6.html#SEC56">A Pure (Reentrant) Parser</a>.
+
+</dd><dt>Reverse polish notation
+</dt><dd>
+A language in which all operators are postfix operators.
+
+</dd><dt>Right recursion
+</dt><dd>
+A rule whose result symbol is also its last component symbol;
+for example, <samp>`expseq1: exp ',' expseq1;'</samp>.  See section <a href="bison_6.html#SEC42">Recursive Rules</a>.
+
+</dd><dt>Semantics
+</dt><dd>
+In computer languages, the semantics are specified by the actions
+taken for each instance of the language, i.e., the meaning of
+each statement.  See section <a href="bison_6.html#SEC43">Defining Language Semantics</a>.
+
+</dd><dt>Shift
+</dt><dd>
+A parser is said to shift when it makes the choice of analyzing
+further input from the stream rather than reducing immediately some
+already-recognized rule.  See section <a href="bison_8.html#SEC68">The Bison Parser Algorithm</a>.
+
+</dd><dt>Single-character literal
+</dt><dd>
+A single character that is recognized and interpreted as is.
+See section <a href="bison_4.html#SEC9">From Formal Rules to Bison Input</a>.
+
+</dd><dt>Start symbol
+</dt><dd>
+The nonterminal symbol that stands for a complete valid utterance in
+the language being parsed.  The start symbol is usually listed as the
+first nonterminal symbol in a language specification.
+See section <a href="bison_6.html#SEC55">The Start-Symbol</a>.
+
+</dd><dt>Symbol table
+</dt><dd>
+A data structure where symbol names and associated data are stored
+during parsing to allow for recognition and use of existing
+information in repeated uses of a symbol.  See section <a href="bison_5.html#SEC29">Multi-Function Calculator: <code>mfcalc</code></a>.
+
+</dd><dt>Token
+</dt><dd>
+A basic, grammatically indivisible unit of a language.  The symbol
+that describes a token in the grammar is a terminal symbol.
+The input of the Bison parser is a stream of tokens which comes from
+the lexical analyzer.  See section <a href="bison_6.html#SEC40">Symbols, Terminal and Nonterminal</a>.
+
+</dd><dt>Terminal symbol
+</dt><dd>
+A grammar symbol that has no rules in the grammar and therefore
+is grammatically indivisible.  The piece of text it represents
+is a token.  See section <a href="bison_4.html#SEC8">Languages and Context-Free Grammars</a>.
+</dd></dl>
+
+<hr>
+Go to the <a href="bison_1.html">first</a>, <a href="bison_13.html">previous</a>, <a href="bison_15.html">next</a>, <a href="bison_15.html">last</a> section, <a href="index.html">table of contents</a>.
+
+</body></html>

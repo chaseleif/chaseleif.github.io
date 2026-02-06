@@ -1,0 +1,43 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252">
+
+<!-- This HTML file has been created by texi2html 1.44
+     from /opt/src/gnu/flex-2.5.4/MISC/texinfo/flex.texi on 30 June 1997 -->
+
+<title>Flex - a scanner generator - Interfacing with yacc</title>
+</head>
+<body>
+
+Go to the <a href="flex_1.html">first</a>, <a href="flex_15.html">previous</a>, <a href="flex_17.html">next</a>, <a href="flex_25.html">last</a> section, <a href="index.html">table of contents</a>.
+<hr>
+
+<h2><a name="SEC16" href="flex_16.html#SEC16">Interfacing with <code>yacc</code></a></h2>
+
+<p>
+One of the main uses of <code>flex</code> is as a companion to the <code>yacc</code>
+parser-generator.  <code>yacc</code> parsers expect to call a routine
+named <samp>`yylex()'</samp> to find the next input token.  The routine
+is supposed to return the type of the next token as well
+as putting any associated value in the global <code>yylval</code>.  To
+use <code>flex</code> with <code>yacc</code>, one specifies the <samp>`-d'</samp> option to <code>yacc</code> to
+instruct it to generate the file <tt>`y.tab.h'</tt> containing
+definitions of all the <samp>`%tokens'</samp> appearing in the <code>yacc</code> input.
+This file is then included in the <code>flex</code> scanner.  For
+example, if one of the tokens is "TOK_NUMBER", part of the
+scanner might look like:
+
+</p>
+
+<pre>%{
+#include "y.tab.h"
+%}
+
+%%
+
+[0-9]+        yylval = atoi( yytext ); return TOK_NUMBER;
+</pre>
+
+<hr>
+Go to the <a href="flex_1.html">first</a>, <a href="flex_15.html">previous</a>, <a href="flex_17.html">next</a>, <a href="flex_25.html">last</a> section, <a href="index.html">table of contents</a>.
+
+</body></html>

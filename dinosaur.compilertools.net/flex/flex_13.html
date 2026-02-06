@@ -1,0 +1,87 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252">
+
+<!-- This HTML file has been created by texi2html 1.44
+     from /opt/src/gnu/flex-2.5.4/MISC/texinfo/flex.texi on 30 June 1997 -->
+
+<title>Flex - a scanner generator - End-of-file rules</title>
+</head>
+<body>
+
+Go to the <a href="flex_1.html">first</a>, <a href="flex_12.html">previous</a>, <a href="flex_14.html">next</a>, <a href="flex_25.html">last</a> section, <a href="index.html">table of contents</a>.
+<hr>
+
+<h2><a name="SEC13" href="flex_13.html#SEC13">End-of-file rules</a></h2>
+
+<p>
+The special rule "&lt;&lt;EOF&gt;&gt;" indicates actions which are to
+be taken when an end-of-file is encountered and yywrap()
+returns non-zero (i.e., indicates no further files to
+process).  The action must finish by doing one of four
+things:
+
+</p>
+
+<ul>
+<li>
+
+assigning <code>yyin</code> to a new input file (in previous
+versions of flex, after doing the assignment you
+had to call the special action <code>YY_NEW_FILE</code>; this is
+no longer necessary);
+
+</li><li>
+
+executing a <code>return</code> statement;
+
+</li><li>
+
+executing the special <samp>`yyterminate()'</samp> action;
+
+</li><li>
+
+or, switching to a new buffer using
+<samp>`yy_switch_to_buffer()'</samp> as shown in the example
+above.
+</li></ul>
+
+<p>
+&lt;&lt;EOF&gt;&gt; rules may not be used with other patterns; they
+may only be qualified with a list of start conditions.  If
+an unqualified &lt;&lt;EOF&gt;&gt; rule is given, it applies to <em>all</em>
+start conditions which do not already have &lt;&lt;EOF&gt;&gt;
+actions.  To specify an &lt;&lt;EOF&gt;&gt; rule for only the initial
+start condition, use
+
+</p>
+
+<pre>&lt;INITIAL&gt;&lt;&lt;EOF&gt;&gt;
+</pre>
+
+<p>
+These rules are useful for catching things like unclosed
+comments.  An example:
+
+</p>
+
+<pre>%x quote
+%%
+
+...other rules for dealing with quotes...
+
+&lt;quote&gt;&lt;&lt;EOF&gt;&gt;   {
+         error( "unterminated quote" );
+         yyterminate();
+         }
+&lt;&lt;EOF&gt;&gt;  {
+         if ( *++filelist )
+             yyin = fopen( *filelist, "r" );
+         else
+            yyterminate();
+         }
+</pre>
+
+<hr>
+Go to the <a href="flex_1.html">first</a>, <a href="flex_12.html">previous</a>, <a href="flex_14.html">next</a>, <a href="flex_25.html">last</a> section, <a href="index.html">table of contents</a>.
+
+</body></html>
