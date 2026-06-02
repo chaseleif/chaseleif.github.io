@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>cstester.config &#8212; CSTester 2.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=27fed22d" />
+    <script src="../../_static/documentation_options.js?v=60dbed4a"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for cstester.config</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">asdict</span><span class="p">,</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">MISSING</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<div class="viewcode-block" id="CSTesterConfig">
+<a class="viewcode-back" href="../../cstester.html#cstester.config.CSTesterConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CSTesterConfig</span><span class="p">:</span>
+<span class="w">  </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  CSTesterConfig</span>
+
+<span class="sd">  A dataclass which holds the actual configuration values for</span>
+<span class="sd">  :class:`.CSTester`</span>
+
+<span class="sd">  This class collects configuration options which can be saved/loaded</span>
+<span class="sd">  &#39;&#39;&#39;</span>
+  <span class="c1">#: Paths for submissions, test files, template dir</span>
+  <span class="n">phasedir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+  <span class="c1">#: The submissions.zip containing group zips</span>
+  <span class="n">phasezip</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+  <span class="c1">#: Keyfile to help associate zips with their group number</span>
+  <span class="n">keyfile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+  <span class="c1">#: A regex for properly named zips to associate with group number</span>
+  <span class="n">groupre_str</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+  <span class="c1">#: Regex patterns of files/dirs to exclude from submitted zips</span>
+  <span class="n">zipexclude_strs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">[])</span>
+  <span class="c1">#: Regex patterns of files to put in specific locations from submitted zips</span>
+  <span class="n">zipinclude_strs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">{})</span>
+  <span class="c1">#: Number/range list of all groups</span>
+  <span class="n">allgroups</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+  <span class="c1">#: Number/range list of groups to **only** include</span>
+  <span class="n">include</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+  <span class="c1">#: Number/range list of groups to exclude</span>
+  <span class="n">exclude</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+  <span class="c1">#: Regex patterns of files to match for the freeze operation</span>
+  <span class="n">freezefiles</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">[])</span>
+  <span class="c1">#: Regex patterns of files to match for the clean operation</span>
+  <span class="n">cleanfiles</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">[])</span>
+  <span class="c1">#: Path containing input test cases</span>
+  <span class="n">casedir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+  <span class="c1">#: The file extension of input test cases</span>
+  <span class="n">caseext</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+  <span class="c1">#: A list of test cases found from casedir ending with caseext</span>
+  <span class="n">cases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">[])</span>
+  <span class="c1">#: Path containing expected output files</span>
+  <span class="c1">#: The basenames of expected output/input test cases should match</span>
+  <span class="n">expdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+  <span class="c1">#: The file extension of expected output files</span>
+  <span class="n">expext</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+  <span class="c1"># A list of expected outputs found from expdir ending with expext</span>
+  <span class="n">exps</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">[])</span>
+  <span class="c1">#: Command to test their program, shlex.split(testcmd)[0] is their program</span>
+  <span class="c1">#: input test cases are either:</span>
+  <span class="c1">#: passed via argument with @case@</span>
+  <span class="c1">#: or, if @case@ is not present in testcmd, the case is piped to stdin</span>
+  <span class="n">testcmd</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+  <span class="c1">#: A list of commands to run, in order, from each group directory</span>
+  <span class="c1">#: (if a command fails, later commands aren&#39;t ran)</span>
+  <span class="c1">#: this can be used to simulate a `make` command</span>
+  <span class="n">prepcmds</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">[])</span>
+  <span class="c1">#: A document name that should be within each submission</span>
+  <span class="c1">#: this filename, these files can be quickly read for all groups</span>
+  <span class="n">readmename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;writeup.txt&#39;</span>
+  <span class="c1">#: Regex patterns of strings to search for within files</span>
+  <span class="n">searchstrs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">[])</span>
+  <span class="c1">#: Regex patterns of files to search for searchstrs</span>
+  <span class="n">searchfiles</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">[])</span>
+
+<div class="viewcode-block" id="CSTesterConfig.to_yaml">
+<a class="viewcode-back" href="../../cstester.html#cstester.config.CSTesterConfig.to_yaml">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">to_yaml</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Returns:</span>
+<span class="sd">      str: configuration</span>
+
+<span class="sd">    A YAML string which can be written to a file</span>
+
+<span class="sd">    ``yaml.dump(asdict(self))``</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">asdict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">yaml</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">config</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTesterConfig.from_yaml">
+<a class="viewcode-back" href="../../cstester.html#cstester.config.CSTesterConfig.from_yaml">[docs]</a>
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span><span class="w"> </span><span class="nf">from_yaml</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;CSTesterConfig&#39;</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Args:</span>
+<span class="sd">      filename (str): Path to a YAML file</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      CSTesterConfig: new instance</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+      <span class="n">kwargs</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">infile</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTesterConfig.default_value">
+<a class="viewcode-back" href="../../cstester.html#cstester.config.CSTesterConfig.default_value">[docs]</a>
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span><span class="w"> </span><span class="nf">default_value</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">field</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Args:</span>
+<span class="sd">      field (str): CSTesterConfig attribute name</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Default value of attribute</span>
+
+<span class="sd">    Used to reset a data field back to its default</span>
+
+<span class="sd">    The parameter ``field`` must be a valid attribute, i.e.,</span>
+<span class="sd">    ``hasattr(cls, field) == True``</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__dataclass_fields__</span><span class="p">[</span><span class="n">field</span><span class="p">]</span><span class="o">.</span><span class="n">default_factory</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">MISSING</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__dataclass_fields__</span><span class="p">[</span><span class="n">field</span><span class="p">]</span><span class="o">.</span><span class="n">default_factory</span><span class="p">()</span>
+    <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__dataclass_fields__</span><span class="p">[</span><span class="n">field</span><span class="p">]</span><span class="o">.</span><span class="n">default</span></div>
+</div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">CSTester</a></h1>
+
+
+
+<p class="blurb">Computer Science programming submission testing tool</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=chaseleif&repo=test_output&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Configuration options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#phase-directory">Phase directory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#extraction">Extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#making-patches">Making patches</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../cstester.html">CSTester API</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Chase Phelps.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

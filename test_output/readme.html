@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Configuration options &#8212; CSTester 2.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <script src="_static/documentation_options.js?v=60dbed4a"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="CSTester API" href="cstester.html" />
+    <link rel="prev" title="CSTester" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <p><code class="docutils literal notranslate"><span class="pre">CSTester</span></code> is a Python curses package
+to automate Computer Science programming assignment evaluation.</p>
+<section id="configuration-options">
+<h1>Configuration options<a class="headerlink" href="#configuration-options" title="Link to this heading">¶</a></h1>
+<ul>
+<li><p>phasedir</p>
+<p>The directory containing groups’ submissions</p>
+</li>
+<li><p>phasezip</p>
+<p>A zip containing groups’ zipfiles</p>
+</li>
+<li><p>keyfile</p>
+<p>Keys to associate with group numbers to aid extraction</p>
+</li>
+<li><p>groupre_str</p>
+<p>A regex to extract group numbers from group zip filenames</p>
+</li>
+<li><p>zipexclude_strs</p>
+<p>A list of regex patterns to exclude files if any portion of
+the filename matches a pattern</p>
+</li>
+<li><p>zipinclude_strs</p>
+<p>A map of files to explicitly place at a location
+relative to the group’s root directory</p>
+</li>
+<li><p>allgroups</p>
+<p>A calculated number/range list and includes all group numbers</p>
+</li>
+<li><p>include</p>
+<p>A number/range list of groups to <strong>only</strong> include</p>
+</li>
+<li><p>exclude</p>
+<p>A number/range list of groups to exclude</p>
+</li>
+<li><p>freezefiles</p>
+<p>A pattern for files to “freeze”</p>
+</li>
+<li><p>cleanfiles</p>
+<p>A pattern for files to remove with the clean command</p>
+</li>
+<li><p>casedir</p>
+<p>The directory containing input test cases</p>
+</li>
+<li><p>caseext</p>
+<p>The file extension of input test cases</p>
+</li>
+<li><p>cases</p>
+<p>A calculated list of input test cases</p>
+</li>
+<li><p>expdir</p>
+<p>The directory containing expected output files</p>
+</li>
+<li><p>expext</p>
+<p>The file extension of expected output files</p>
+</li>
+<li><p>exps</p>
+<p>A calculated list of expected output files</p>
+</li>
+<li><p>testcmd</p>
+<p>The testing command to run from each group’s directory</p>
+</li>
+<li><p>prepcmds</p>
+<p>A list of commands to run from selected group directories</p>
+</li>
+<li><p>readmename</p>
+<p>The name of a text file that should be included in submissions</p>
+</li>
+<li><p>searchstrs</p>
+<p>A list of regex patterns to search for within searchfiles</p>
+</li>
+<li><p>searchfiles</p>
+<p>A pattern for files to include within the strings search</p>
+</li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="phase-directory">
+<h1>Phase directory<a class="headerlink" href="#phase-directory" title="Link to this heading">¶</a></h1>
+<p>One of the first things wich must be done is setting up the phase directory.</p>
+<p>The phase directory contains each group’s submission in a subdirectory
+in the form <code class="docutils literal notranslate"><span class="pre">group_n</span></code>, where n is a non-negative integer.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<dl class="simple">
+<dt>Group numbers</dt><dd><ul class="simple">
+<li><p>Are <strong>non-negative</strong>, <code class="docutils literal notranslate"><span class="pre">0|[1-9][0-9]*</span></code></p></li>
+<li><p>Do <strong>not</strong> have to be consecutive</p></li>
+<li><p>Must <strong>not</strong> have leading zeroes</p></li>
+</ul>
+</dd>
+</dl>
+</div>
+</section>
+<section id="extraction">
+<h1>Extraction<a class="headerlink" href="#extraction" title="Link to this heading">¶</a></h1>
+<p>The extractor was made to extract <code class="docutils literal notranslate"><span class="pre">submissions.zip</span></code>,
+where each group submits a zip.</p>
+<p><code class="docutils literal notranslate"><span class="pre">submissions.zip</span></code> is a zip containing other zips.</p>
+<p>Group numbers are obtained through a group regex,
+or, optionally, using a keyfile.</p>
+<p>The group regex extracts a number from a filename,
+using <code class="docutils literal notranslate"><span class="pre">re.match</span></code>, e.g.,</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>^group_(0|[1-9][0-9]*).*\.zip$
+</pre></div>
+</div>
+<p>The key-value pairs taken from the keyfile are of the form</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>^(0|[1-9][0-9]*)(?:,.*):([^:]+)$
+</pre></div>
+</div>
+<p>That is, lines start with a valid group number,
+optionally followed by a comma and some series of text before a trailing colon,
+finally, the key to search for in the filename is after the final colon.</p>
+<p>For example, with</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">42</span><span class="p">,</span><span class="n">Group</span> <span class="n">leader</span><span class="p">:</span> <span class="n">A</span> <span class="n">name</span><span class="p">,</span> <span class="n">Members</span><span class="p">:</span> <span class="n">Another</span> <span class="n">name</span><span class="p">:</span><span class="n">groupname</span>
+</pre></div>
+</div>
+<p>if <strong>groupname</strong> exists within the filename
+then the group number will be inferred to be <strong>42</strong>.</p>
+<p>All regex matches performed during extraction are all <strong>case-insensitive</strong>.
+<em>Regexes</em> in a keyfile <strong>must be unique</strong>, <em>group numbers</em> <strong>need not be</strong>.</p>
+<p>Group directories are of the form <code class="docutils literal notranslate"><span class="pre">group_n</span></code>, where <code class="docutils literal notranslate"><span class="pre">n</span></code> is the group number</p>
+<p>Within the phase directory, an extraction log is created: <code class="docutils literal notranslate"><span class="pre">phasedir/x.log</span></code></p>
+<dl class="simple">
+<dt>The extraction log records general information about extraction</dt><dd><ul class="simple">
+<li><p>If a keyfile was used and how many keys were obtained from the keyfile</p></li>
+<li><p>If files were skipped/ignored</p></li>
+<li><p>If a group number was inferred from keyfile and why</p></li>
+<li><p>If a group number was manually entered
+(decisions in subsequent extractions <em>of the same zipfile</em> can be repeated)</p></li>
+<li><p>Which file was chosen among multiple submissions</p></li>
+<li><p>How many group-&gt;file pairs were found</p></li>
+<li><p>If duplicate files were ignored</p></li>
+<li><p>If a submission zip had symlink files</p></li>
+<li><p>If extraction of a submission zip had an exception</p></li>
+<li><p>If a submission wasn’t extracted due to a suspicious compression ratio</p></li>
+<li><p>If duplicate files were ignored</p></li>
+<li><p>If extracted files needed to be renamed</p></li>
+</ul>
+</dd>
+<dt>Within group directories, e.g., <code class="docutils literal notranslate"><span class="pre">phasedir/group_1/</span></code></dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">group1.zip</span></code>–contains the original zipfile</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sub.nfo</span></code>–contains details of the original zipfile
+The original zip filename
+The compressed size, extracted size, and compression ratio
+Whether symlink files existed (and were skipped)
+List of extracted files
+List of files excluded</p></li>
+</ul>
+</dd>
+</dl>
+<p><strong>Extracting individual zip files</strong></p>
+<p>The submissions zip is extracted to a temporary directory.</p>
+<p>We examine the zip memberlist against exclude patterns,
+and do not extract files which match (case-insensitive)
+an exclude pattern.</p>
+<p>For files we want at a specific location,
+these can be specified in the include pattern map:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">key</span></code> is a regex to match the file</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">val</span></code> is a relative location from the group directory</p></li>
+</ul>
+</div></blockquote>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>include={‘Makefile’,’’,’driver.c’,’src}
+Will put Makefile in the group’s root directory and driver.c in src/</p>
+</div>
+<p>We
+exclude (and print a warning) any symlinks within the archive. We
+extract the contents of the zip to a new temporary directory. We ensure
+all files are chmod 600 (<strong>owner rw</strong>), and all directories are chmod
+700 (<strong>owner rwx</strong>).</p>
+<p>We move all files to the final extraction directory,
+we remove any special characters from file/directory names,
+and spaces are converted to underscores.
+We put the original zip in the group’s directory.
+A text file, <code class="docutils literal notranslate"><span class="pre">./sub.nfo</span></code>,
+will contain the zip filename,
+original content list with sizes (compressed/decompressed),
+and compression ratio of extracted files.</p>
+</section>
+<hr class="docutils" />
+<section id="making-patches">
+<h1>Making patches<a class="headerlink" href="#making-patches" title="Link to this heading">¶</a></h1>
+<dl class="simple">
+<dt>Patches can be made which can be shared</dt><dd><ul class="simple">
+<li><p>So that they can be applied with the <code class="docutils literal notranslate"><span class="pre">patch</span></code> command</p></li>
+<li><p>To show changes made</p></li>
+</ul>
+</dd>
+</dl>
+<p>To make patches, relevant files must be first frozen in their initial state.</p>
+<p>Freezing files requires a regex to match files of interest.</p>
+<dl class="simple">
+<dt>All files within group directories which match the regex</dt><dd><ul class="simple">
+<li><p>Are duplicated in a zip archive</p></li>
+<li><p>Their hash is calculated and stored in a text file</p></li>
+</ul>
+</dd>
+</dl>
+<p>The frozen zip and hashes are stored in the root of the phase directory.</p>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">CSTester</a></h1>
+
+
+
+<p class="blurb">Computer Science programming submission testing tool</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=chaseleif&repo=test_output&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Configuration options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#phase-directory">Phase directory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#extraction">Extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#making-patches">Making patches</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cstester.html">CSTester API</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">CSTester</a></li>
+      <li>Next: <a href="cstester.html" title="next chapter">CSTester API</a></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Chase Phelps.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/readme.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>cstester.configmgr &#8212; CSTester 2.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=27fed22d" />
+    <script src="../../_static/documentation_options.js?v=60dbed4a"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for cstester.configmgr</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">curses</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span><span class="o">,</span><span class="w"> </span><span class="nn">re</span><span class="o">,</span><span class="w"> </span><span class="nn">shlex</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">CSTesterConfig</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">collapsenumrange</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.win</span><span class="w"> </span><span class="kn">import</span> <span class="n">CursesScreen</span><span class="p">,</span> <span class="n">WinOpt</span>
+
+<span class="c1"># any value is either a string or None</span>
+<span class="c1"># a variable value is either just the optional string or a tuple for dict</span>
+<span class="c1"># for a dict we need {key:val}, so we have a key and an optional str</span>
+<span class="n">VarVal</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span>
+<span class="c1"># the attributes of the CSTesterConfig that we can return</span>
+<span class="n">AttrVal</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span>
+<span class="c1"># for __add__ we have a tuple of str(attr) and a val</span>
+<span class="n">KeyVal</span> <span class="o">=</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">VarVal</span><span class="p">]</span>
+
+<div class="viewcode-block" id="ConfigManager">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ConfigManager</span><span class="p">:</span>
+<span class="w">  </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  Utility class providing a managed interface</span>
+<span class="sd">  to the :py:class:`.CSTesterConfig` dataclass</span>
+<span class="sd">  &#39;&#39;&#39;</span>
+<div class="viewcode-block" id="ConfigManager.__init__">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.__init__">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scr</span><span class="p">:</span> <span class="s1">&#39;CursesScreen&#39;</span><span class="p">,</span> <span class="n">configfile</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Args:</span>
+<span class="sd">      scr (CursesScreen): The running curses screen which</span>
+<span class="sd">        provides window functions to display windows and accept input</span>
+<span class="sd">      configfile (str, Optional): Path to a saved YAML configuration file</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="c1">#: The active :py:class:`.CursesScreen` object</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span> <span class="o">=</span> <span class="n">scr</span>
+    <span class="c1">#: Our :py:class:`.CSTesterConfig`, the dataclass holding configuration</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">conf</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">configfile</span><span class="p">):</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conf</span> <span class="o">=</span> <span class="n">CSTesterConfig</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="n">configfile</span><span class="p">)</span>
+      <span class="k">except</span><span class="p">:</span>
+        <span class="k">pass</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">conf</span> <span class="o">=</span> <span class="n">CSTesterConfig</span><span class="p">()</span>
+    <span class="c1">#: Names of :py:attr:`.conf` attributes that are regular expressions</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">regexes</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;groupre_str&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;zipinclude_strs&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;zipexclude_strs&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;freezefiles&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;cleanfiles&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;searchstrs&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;searchfiles&#39;</span><span class="p">,</span>
+                    <span class="p">)</span>
+    <span class="c1">#: Names of :py:attr:`.conf` attributes that are directories</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dirs</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;phasedir&#39;</span><span class="p">,</span> <span class="s1">&#39;casedir&#39;</span><span class="p">,</span> <span class="s1">&#39;expdir&#39;</span><span class="p">,</span> <span class="s1">&#39;templatedir&#39;</span><span class="p">)</span>
+    <span class="c1">#: Names of :py:attr:`.conf` attributes that are files</span>
+    <span class="c1">#: (including an optional file-filter regex to use)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">files</span> <span class="o">=</span> <span class="p">{</span> <span class="s1">&#39;phasezip&#39;</span><span class="p">:</span><span class="s1">&#39;.*</span><span class="se">\\</span><span class="s1">.[Zz][Ii][Pp]&#39;</span><span class="p">,</span> <span class="s1">&#39;keyfile&#39;</span><span class="p">:</span><span class="s1">&#39;&#39;</span> <span class="p">}</span>
+    <span class="c1">#: Names of :py:attr:`.conf` attributes that are number/range lists</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">numranges</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;include&#39;</span><span class="p">,</span> <span class="s1">&#39;exclude&#39;</span><span class="p">)</span>
+    <span class="c1">#: Names of :py:attr:`.conf` attributes that contain executable commands</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">commands</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;groupcmd&#39;</span><span class="p">,</span> <span class="s1">&#39;prepcmds&#39;</span><span class="p">)</span>
+    <span class="c1">#: Names of :py:attr:`.conf` attributes which can have empty strings</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">emptyok</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;caseext&#39;</span><span class="p">,</span> <span class="s1">&#39;expext&#39;</span><span class="p">,</span> <span class="s1">&#39;zipinclude_strs&#39;</span><span class="p">)</span>
+    <span class="c1">#: Dictionary of prompts to use in :py:meth:`.modifyconf`</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">prompts</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;saveconfig&#39;</span><span class="p">:</span><span class="s1">&#39;Enter filename for output YAML:&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;phasedir&#39;</span><span class="p">:</span><span class="s1">&#39;Select the phase submission directory&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;phasezip&#39;</span><span class="p">:</span><span class="s1">&#39;Select the phase submission zip file&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;keyfile&#39;</span><span class="p">:</span><span class="s1">&#39;Select the keyfile to aid extraction&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;groupre_str&#39;</span><span class="p">:</span><span class="s1">&#39;Regex to extract group number from group zip:&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;zipexclude_strs&#39;</span><span class="p">:(</span><span class="s1">&#39;Regex for files to not extract&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;Regex to match files:&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;zipinclude_strs&#39;</span><span class="p">:(</span><span class="s1">&#39;Regexes for files wanted and their location&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;Regex to match files:&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;Where </span><span class="se">\&quot;</span><span class="s1">@KEY@</span><span class="se">\&quot;</span><span class="s1"> files go relative to group root:&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;include&#39;</span><span class="p">:</span><span class="s1">&#39;Group(s) to only include:&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;exclude&#39;</span><span class="p">:</span><span class="s1">&#39;Group(s) to exclude:&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;freezefiles&#39;</span><span class="p">:(</span><span class="s1">&#39;Regex for files to freeze for diff&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;Regex to match files:&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;cleanfiles&#39;</span><span class="p">:(</span><span class="s1">&#39;Regex for for files to remove:&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;Regex to match files:&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;casedir&#39;</span><span class="p">:</span><span class="s1">&#39;Select the input cases directory&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;caseext&#39;</span><span class="p">:</span><span class="s1">&#39;Input cases</span><span class="se">\&#39;</span><span class="s1"> file-extension:&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;expdir&#39;</span><span class="p">:</span><span class="s1">&#39;Select the expected output directory&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;expext&#39;</span><span class="p">:</span><span class="s1">&#39;Expected outputs</span><span class="se">\&#39;</span><span class="s1"> file-extension:&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;templatedir&#39;</span><span class="p">:</span><span class="s1">&#39;Select the template directory&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;groupcmd&#39;</span><span class="p">:</span><span class="s1">&#39;Command to run within group directories:&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;testcmd&#39;</span><span class="p">:</span><span class="s1">&#39;Command to test program, e.g., </span><span class="se">\&#39;</span><span class="s1">./obj/mcc @case@</span><span class="se">\&#39;</span><span class="s1">:&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;prepcmds&#39;</span><span class="p">:(</span><span class="s1">&#39;Commands to prepare submission for testing:&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;Command to run next:&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;readmename&#39;</span><span class="p">:</span><span class="s1">&#39;Enter the README filename:&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;searchstrs&#39;</span><span class="p">:(</span><span class="s1">&#39;Regex of strings to search for within files&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;Regex of string to search for:&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;searchfiles&#39;</span><span class="p">:(</span><span class="s1">&#39;Regex for files to search for strings within&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;Regex to match files:&#39;</span><span class="p">),</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.has">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.has">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">has</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Check whether :py:attr:`.conf` has attribute ``attr``</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      attr (str): Attribute name to check</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      bool: True if :py:attr:`.conf`.``attr`` exists</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.isset">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.isset">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">isset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Check whether :py:attr:`.conf`.``attr`` is set (non-empty)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      attr (str): Attibute name to check</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      bool: True if the :py:attr:`.conf`.``attr`` is non-empty</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+      <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.resetattr">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.resetattr">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">resetattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Reset :py:attr:`.conf`.``attr`` to its default value</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      attr (str): Attribute name to reset</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">default_value</span><span class="p">(</span><span class="n">attr</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.get">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.get">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AttrVal</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Get :py:attr:`.conf`.``attr``</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      attr (str): Attribute name to retrieve</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      :type str, list of str, or dict[str, str]: :py:attr:`.conf`.``attr``</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      AttributeError:</span>
+<span class="sd">        if :py:attr:`.conf`.``attr`` doesn&#39;t exist</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+      <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\&#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="se">\&#39;</span><span class="s1"> object &#39;</span> <span class="o">+</span> \
+                          <span class="sa">f</span><span class="s1">&#39;has no attribute </span><span class="se">\&#39;</span><span class="si">{</span><span class="n">attr</span><span class="si">}</span><span class="se">\&#39;</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.set">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.set">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">AttrVal</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Set :py:attr:`.conf`.``attr`` to ``val``</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      attr (str): Attribute name to set</span>
+<span class="sd">      val :type str, list of str, or dict[str, str]: Value to assign</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.__getattr__">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.__getattr__">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AttrVal</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Forward member requests from the dot operator to :py:attr:`.conf`</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      attr (str): Attribute name</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      :type str, list of str, or dict[str, str]: :py:attr:`.conf`.``attr``</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.load">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.load">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Create an instance of :py:class:`.CSTesterConfig`</span>
+<span class="sd">    from a YAML configuration file</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      filename (str): Path to YAML file</span>
+
+<span class="sd">    Sets :py:attr:`.conf`</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="s1">&#39;Load configuration&#39;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">filename</span><span class="p">:</span>
+      <span class="n">filename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">getfile</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="s1">&#39;Select yaml:&#39;</span><span class="p">,</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">(),</span>
+                                  <span class="n">filere</span><span class="o">=</span><span class="s1">&#39;.*</span><span class="se">\\</span><span class="s1">.[Yy][Aa][Mm][Ll]$&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">filename</span><span class="p">:</span>
+      <span class="k">return</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">conf</span> <span class="o">=</span> <span class="n">CSTesterConfig</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNANY</span><span class="p">,</span>
+                      <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+                      <span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Configuration loaded from </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="se">\&quot;</span><span class="s1">&#39;</span><span class="p">])</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNANY</span><span class="p">,</span>
+                      <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+                      <span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Unable to load from </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="se">\&quot;</span><span class="s1">&#39;</span><span class="p">],</span>
+                      <span class="n">err</span><span class="o">=</span><span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[:\n]+&#39;</span><span class="p">,</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))])</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.save">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.save">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Save the configuration of :py:attr:`.conf` to a YAML file</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="s1">&#39;Save configuration&#39;</span>
+    <span class="n">filename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">getinput</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="s1">&#39;Save to:&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">filename</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span>
+    <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">filename</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">or</span> <span class="n">filename</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;.yaml&#39;</span><span class="p">:</span>
+      <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">filename</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">.yaml&#39;</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">filename</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.yaml&#39;</span>
+    <span class="n">conf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">to_yaml</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+      <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNANY</span><span class="p">,</span>
+                                <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+                                <span class="n">err</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;File </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="se">\&quot;</span><span class="s1"> already exists&#39;</span><span class="p">],</span>
+                                <span class="n">footer</span><span class="o">=</span><span class="s1">&#39;Overwrite file? [y/N] &#39;</span><span class="p">)</span>
+      <span class="c1"># if c is not Y or y</span>
+      <span class="k">if</span> <span class="n">c</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;Y&#39;</span><span class="p">,</span><span class="s1">&#39;y&#39;</span><span class="p">]:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNANY</span><span class="p">,</span>
+                        <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+                        <span class="n">err</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Save aborted: not overwriting </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="se">\&quot;</span><span class="s1">&#39;</span><span class="p">])</span>
+        <span class="k">return</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">configfile</span><span class="p">:</span>
+        <span class="n">configfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">conf</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNANY</span><span class="p">,</span>
+                      <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+                      <span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Configuration saved to </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="se">\&quot;</span><span class="s1">&#39;</span><span class="p">])</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNANY</span><span class="p">,</span>
+                      <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+                      <span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Save failure: unable to write </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="se">\&quot;</span><span class="s1">&#39;</span><span class="p">],</span>
+                      <span class="n">err</span><span class="o">=</span><span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[:\n]+&#39;</span><span class="p">,</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))])</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.verifiedregex">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.verifiedregex">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">verifiedregex</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">VarVal</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">VarVal</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Validate ``val`` using :py:func:`re.compile`</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      val :type Optional[str], or Tuple[str, Optional[str]]:</span>
+<span class="sd">        Input value</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Optional[str]: Verified regex string or None</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">badregex</span><span class="p">(</span><span class="n">e</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNANY</span><span class="p">,</span>
+                      <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Regex compile verification&#39;</span><span class="p">,</span>
+                      <span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Exception during re.compile&#39;</span><span class="p">],</span>
+                      <span class="n">err</span><span class="o">=</span><span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[:\n]+&#39;</span><span class="p">,</span><span class="n">e</span><span class="p">)])</span>
+    <span class="c1"># reject empty string as well as None for regexes</span>
+    <span class="c1"># when VarVal is a tuple, index 0 is the key and index 1 is the value</span>
+    <span class="c1"># this allows to use rhs when lhs, i.e., if (regex) then (value)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">val</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">val</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+          <span class="k">return</span> <span class="n">val</span>
+        <span class="k">except</span> <span class="n">re</span><span class="o">.</span><span class="n">error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+          <span class="n">badregex</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="n">val</span><span class="p">:</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">val</span>
+      <span class="k">except</span> <span class="n">re</span><span class="o">.</span><span class="n">error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">badregex</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.verifiednumrange">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.verifiednumrange">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">verifiednumrange</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Validate that ``val`` is a valid number/range list</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      val (Optional[str]): Input string</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Optional[str]: verified number/range list string or None</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">val</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">val</span> <span class="o">=</span> <span class="n">collapsenumrange</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">val</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">val</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNANY</span><span class="p">,</span>
+                    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Number-range list verification&#39;</span><span class="p">,</span>
+                    <span class="n">err</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Number-range lists can be:&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;- a single value&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;- a comma-seperated list of values&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;Each value can be:&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;- single number&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;- valid range, e.g., 2-5&#39;</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.verifiedcommand">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.verifiedcommand">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">verifiedcommand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Validate that ``cmd`` is a valid command</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      cmd (Optional[str]): Command string</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Optional[str]: Verified command string or None</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">cmd</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="n">shlex</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+    <span class="c1"># shell built-in</span>
+    <span class="k">if</span> <span class="n">shutil</span><span class="o">.</span><span class="n">which</span><span class="p">(</span><span class="n">cmd</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">shlex</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+    <span class="c1"># executable file</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">cmd</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">cmd</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">os</span><span class="o">.</span><span class="n">R_OK</span><span class="o">|</span><span class="n">os</span><span class="o">.</span><span class="n">X_OK</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">shlex</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNANY</span><span class="p">,</span>
+                    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Command verification&#39;</span><span class="p">,</span>
+                    <span class="n">err</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Could not verify command </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span><span class="si">}</span><span class="se">\&quot;</span><span class="s1">&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;Checked shell built-ins&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;Checked if it is an executable file&#39;</span><span class="p">])</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.verifyval">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.verifyval">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">verifyval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">VarVal</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">VarVal</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Dispatch verification for a field based on its key</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      key (str): Configuration key</span>
+<span class="sd">      val :type Optional[str], or Tuple[str, Optional[str]]:</span>
+<span class="sd">        Value to verify</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      :type Optional[str], or Tuple[str, Optional[str]]: Verified value</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">regexes</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">verifiedregex</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">numranges</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">verifiednumrange</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">commands</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">verifiedcommand</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">val</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.__add__">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.__add__">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="fm">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">keyval</span><span class="p">:</span> <span class="n">KeyVal</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;ConfigManager&#39;</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Add a key/value pair to the configuration using the + operator</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      keyval :type Tuple[str, [Optional[str], or Tuple[str, Optional[str]]]]:</span>
+<span class="sd">        Tuple or mapping with key and value</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      ConfigManager: **self** (after modification)</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">key</span> <span class="o">=</span> <span class="n">keyval</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">verifyval</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">keyval</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">val</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">pass</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">),</span> <span class="nb">dict</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">val</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">or</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">emptyok</span><span class="p">:</span>
+        <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">val</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">val</span><span class="p">[</span><span class="mi">1</span><span class="p">]})</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="n">val</span> <span class="ow">and</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">emptyok</span><span class="p">:</span>
+      <span class="k">pass</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">),</span> <span class="nb">list</span><span class="p">):</span>
+      <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.modifylist">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.modifylist">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">modifylist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Prompt the user to obtain and set a list value for a key</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      key (str): Configuration key</span>
+<span class="sd">      title (str): Display title for prompts/menus</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">body</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Add new or modify or remove existing&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;&#39;</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prompts</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+            <span class="s1">&#39;&#39;</span><span class="p">]</span>
+    <span class="n">prompt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prompts</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">top</span><span class="p">,</span> <span class="n">hpos</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">top</span><span class="p">,</span> <span class="n">hpos</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNDEL</span><span class="p">,</span>
+                                      <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">body</span><span class="p">,</span>
+                                      <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Finished&#39;</span><span class="p">,</span> <span class="s1">&#39;Add new&#39;</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">]</span> <span class="o">+</span> \
+                                      <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">),</span>
+                                      <span class="n">top</span><span class="o">=</span><span class="n">top</span><span class="p">,</span> <span class="n">hpos</span><span class="o">=</span><span class="n">hpos</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">c</span> <span class="o">==</span> <span class="s1">&#39;KEY_DC&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">hpos</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+          <span class="k">del</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">)[</span><span class="n">hpos</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span>
+          <span class="n">hpos</span> <span class="o">-=</span> <span class="mi">1</span>
+          <span class="k">if</span> <span class="n">hpos</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">hpos</span> <span class="o">=</span> <span class="mi">1</span>
+      <span class="k">elif</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">CursesScreen</span><span class="o">.</span><span class="n">cancelkeys</span> <span class="ow">or</span> <span class="n">hpos</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span>
+      <span class="k">elif</span> <span class="n">hpos</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="bp">self</span> <span class="o">+=</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">getinput</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">prompt</span><span class="p">))</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">)[</span><span class="n">hpos</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">getinput</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">prompt</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">val</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="k">pass</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">val</span><span class="p">:</span>
+          <span class="k">del</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">)[</span><span class="n">hpos</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span>
+          <span class="k">if</span> <span class="n">hpos</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">))</span> <span class="o">+</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">hpos</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">verifyval</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+          <span class="k">if</span> <span class="n">val</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">)[</span><span class="n">hpos</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.modifydict">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.modifydict">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">modifydict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Prompt the user to obtain and set a dict value for a key</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      key (str): Configuration key</span>
+<span class="sd">      title (str): Display title for prompts/menus</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">keybody</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Add new or modify or remove existing&#39;</span><span class="p">,</span>
+              <span class="s1">&#39;&#39;</span><span class="p">,</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">prompts</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+              <span class="s1">&#39;&#39;</span><span class="p">]</span>
+    <span class="n">top</span><span class="p">,</span> <span class="n">hpos</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span>
+    <span class="n">keyprompt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prompts</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">top</span><span class="p">,</span> <span class="n">hpos</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNDEL</span><span class="p">,</span>
+                                      <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">keybody</span><span class="p">,</span>
+                                      <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Finished&#39;</span><span class="p">,</span> <span class="s1">&#39;Add new&#39;</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">]</span> <span class="o">+</span> \
+                                              <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\&quot;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="se">\&quot;</span><span class="s1"> : </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="se">\&quot;</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span>
+                                              <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()],</span>
+                                      <span class="n">top</span><span class="o">=</span><span class="n">top</span><span class="p">,</span> <span class="n">hpos</span><span class="o">=</span><span class="n">hpos</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">c</span> <span class="o">==</span> <span class="s1">&#39;KEY_DC&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">hpos</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+          <span class="n">k</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="n">hpos</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span>
+          <span class="k">del</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">)[</span><span class="n">k</span><span class="p">]</span>
+          <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">isset</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+            <span class="n">hpos</span> <span class="o">=</span> <span class="mi">1</span>
+      <span class="k">elif</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">CursesScreen</span><span class="o">.</span><span class="n">cancelkeys</span> <span class="ow">or</span> <span class="n">hpos</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span>
+      <span class="k">elif</span> <span class="n">hpos</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">getinput</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">keyprompt</span><span class="p">)</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">verifyval</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">k</span><span class="p">:</span>
+          <span class="n">valprompt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prompts</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;@KEY@&#39;</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+          <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">getinput</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">valprompt</span><span class="p">)</span>
+          <span class="bp">self</span> <span class="o">+=</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="n">v</span><span class="p">))</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># original key and val</span>
+        <span class="n">ok</span><span class="p">,</span> <span class="n">ov</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">())[</span><span class="n">hpos</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">getinput</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">keyprompt</span><span class="p">,</span> <span class="n">ok</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="k">pass</span>
+        <span class="c1"># empty string, remove the item</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">k</span><span class="p">:</span>
+          <span class="k">del</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">)[</span><span class="n">ok</span><span class="p">]</span>
+          <span class="k">if</span> <span class="n">hpos</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">))</span> <span class="o">+</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">hpos</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">k</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">verifyval</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+          <span class="k">if</span> <span class="n">k</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">valprompt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prompts</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;@KEY@&#39;</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">getinput</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">valprompt</span><span class="p">,</span> <span class="n">ov</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+              <span class="k">pass</span>
+            <span class="k">elif</span> <span class="n">v</span> <span class="ow">or</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">emptyok</span><span class="p">:</span>
+              <span class="c1"># the key changed, remove the old key</span>
+              <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="n">ok</span><span class="p">:</span>
+                <span class="k">del</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">)[</span><span class="n">ok</span><span class="p">]</span>
+              <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">)[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.updatecasefiles">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.updatecasefiles">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">updatecasefiles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Update :py:attr:`.conf`,``.cases`` or ``.exps`` related dir/ext changes</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      key (str): The key that triggered the update</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;casedir&#39;</span> <span class="ow">or</span> <span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;caseext&#39;</span><span class="p">:</span>
+      <span class="nb">dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;casedir&#39;</span><span class="p">)</span>
+      <span class="n">ext</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;caseext&#39;</span><span class="p">)</span>
+      <span class="n">fileskey</span> <span class="o">=</span> <span class="s1">&#39;cases&#39;</span>
+    <span class="k">elif</span> <span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;expdir&#39;</span> <span class="ow">or</span> <span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;expext&#39;</span><span class="p">:</span>
+      <span class="nb">dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;expdir&#39;</span><span class="p">)</span>
+      <span class="n">ext</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;expext&#39;</span><span class="p">)</span>
+      <span class="n">fileskey</span> <span class="o">=</span> <span class="s1">&#39;exps&#39;</span>
+    <span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="n">name</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="nb">dir</span><span class="p">))</span> \
+                    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">name</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">ext</span><span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">files</span><span class="p">:</span>
+      <span class="k">pass</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">fileskey</span><span class="p">,</span> <span class="n">files</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ConfigManager.modifyconf">
+<a class="viewcode-back" href="../../cstester.html#cstester.configmgr.ConfigManager.modifyconf">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">modifyconf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    High-level method to modify :py:attr`.conf`.``key`` using menus and prompts</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      key (str): Configuration key</span>
+<span class="sd">      title (str): Display title for prompts/menus</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">),</span> <span class="nb">list</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">modifylist</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">title</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">),</span> <span class="nb">dict</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">modifydict</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">title</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dirs</span><span class="p">:</span>
+      <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">isset</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span>
+      <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">else</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span>
+      <span class="bp">self</span> <span class="o">+=</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">getdir</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">prompts</span><span class="p">[</span><span class="n">key</span><span class="p">],</span>
+                                    <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="n">allownew</span><span class="o">=</span><span class="p">(</span><span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;phasedir&#39;</span><span class="p">)))</span>
+      <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;casedir&#39;</span><span class="p">,</span> <span class="s1">&#39;expdir&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">isset</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">updatecasefiles</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">:</span>
+      <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">))</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">isset</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span>
+      <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">else</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span>
+      <span class="bp">self</span> <span class="o">+=</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">getfile</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">prompts</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">path</span><span class="p">,</span>
+                                      <span class="n">filere</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="n">key</span><span class="p">]))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span> <span class="o">+=</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">getinput</span><span class="p">(</span><span class="n">title</span><span class="p">,</span>
+                                      <span class="bp">self</span><span class="o">.</span><span class="n">prompts</span><span class="p">[</span><span class="n">key</span><span class="p">],</span>
+                                      <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">key</span><span class="p">)))</span>
+      <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;caseext&#39;</span><span class="p">,</span> <span class="s1">&#39;expext&#39;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">updatecasefiles</span><span class="p">(</span><span class="n">key</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">CSTester</a></h1>
+
+
+
+<p class="blurb">Computer Science programming submission testing tool</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=chaseleif&repo=test_output&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Configuration options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#phase-directory">Phase directory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#extraction">Extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#making-patches">Making patches</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../cstester.html">CSTester API</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Chase Phelps.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
