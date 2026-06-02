@@ -1,7 +1,27 @@
 <h4>Compiler Construction</h4>
-<a href=../dinosaur.compilertools.net/index.html>
+<span class="subsubbr"></span>
+<ul type="none" style="line-height:142%">
+<li><a href=../dinosaur.compilertools.net/index.html>
 Mirror of now-defunct dinosaur.compilertools.net
 </a> (broken links crossed out)
+</li>
+<li>
+<a href="https://spimsimulator.sourceforge.net/">SPIM MIPS32 Simulator</a>
+</li>
+<pre>
+svn checkout https://svn.code.sf.net/p/spimsimulator/code/ spimsimulator-code
+cd spimsimulator-code/spim/
+mkdir install
+export SPIMDIR="$(pwd)/install"
+make
+make install PREFIX="$SPIMDIR"
+make install-man PREFIX="$SPIMDIR"
+cat install/share/man/man1/spim.1 | groff -mandoc -Thtml > manspim.html
+</pre>
+<li>
+<a href="man/spim.1.html">Generated SPIM doc</a>
+</li>
+</ul>
 <hr width="50%" color="#008A00" align="left" />
 <h4>Doctoral Instructional Assistant</h4>
 <span class="subsubbr"></span>
