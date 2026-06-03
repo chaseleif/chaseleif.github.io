@@ -51,6 +51,12 @@ so a terminal with <code class="docutils literal notranslate"><span class="pre">
 and can be installed with the command <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">cstester</span></code>,
 alternatively, you may clone the repo and <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">.</span></code>
 for a “live” version.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This project is currently under active refinement</p>
+<p>Documentation and minor changes should be expected</p>
+<p>Refer to the <a class="reference external" href="https://chaseleif.tech/cstester">current documentation</a></p>
+</div>
 </section>
 <hr class="docutils" />
 <section id="commands">
@@ -70,7 +76,7 @@ for a “live” version.</p>
 <p>This utility was made to test many programming project/assignment submissions.</p>
 <p>While individual submissions do not need to be “group” submissions,
 this is how a submission is referred to, as a group’s submission.</p>
-<p>Group’s are differentiated from each other based on their number.</p>
+<p>Groups are differentiated from each other based on their number.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <dl class="simple">
@@ -78,6 +84,7 @@ this is how a submission is referred to, as a group’s submission.</p>
 <li><p>Are <strong>non-negative</strong>, <code class="docutils literal notranslate"><span class="pre">0|[1-9][0-9]*</span></code></p></li>
 <li><p>Do <strong>not</strong> have to be consecutive</p></li>
 <li><p>Must <strong>not</strong> have leading zeroes</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">number</span></code> == <code class="docutils literal notranslate"><span class="pre">str(int(number))</span></code></p></li>
 </ul>
 </dd>
 </dl>
@@ -103,16 +110,39 @@ this is how a submission is referred to, as a group’s submission.</p>
 </dl>
 <section id="regular-expressions">
 <h3>Regular expressions<a class="headerlink" href="#regular-expressions" title="Link to this heading">¶</a></h3>
-<p>Several options use regular expressions,
-these are case-insensitive and,
-<em>except for the search strings method</em>,
-are used with <code class="docutils literal notranslate"><span class="pre">re.match</span></code> so begin with an implied caret <code class="docutils literal notranslate"><span class="pre">^</span></code>.</p>
-<p>Expressions are compiled with Python’s re module,
-so refer to their excellent documentation for additonal information.</p>
+<p>Several options make use of regular expressions.</p>
+<p>REs are compiled with Python’s re module, so refer to
+<a class="reference external" href="https://docs.python.org/3/library/re.html">their excellent documentation</a>
+for additonal information.</p>
+<dl class="simple">
+<dt>The search strings method</dt><dd><ul class="simple">
+<li><p>reads files line-by-line</p></li>
+<li><p>uses <code class="docutils literal notranslate"><span class="pre">re.search</span></code></p></li>
+<li><p>will report whether the pattern is found anywhere in a line.</p></li>
+</ul>
+</dd>
+<dt>All other regexes use <code class="docutils literal notranslate"><span class="pre">re.match</span></code></dt><dd><ul class="simple">
+<li><p>they begin with an implicit caret <code class="docutils literal notranslate"><span class="pre">^</span></code></p></li>
+</ul>
+</dd>
+</dl>
 <p>The <strong>group regex</strong> string,
-to extract the group number from their zip filename,
-<strong>must</strong> have the group number in a capture group, e.g.,
-<code class="docutils literal notranslate"><span class="pre">projectgroup(\d+)_.*</span></code>.</p>
+to extract the group number from their zip filename,</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><strong>must</strong> have at least 1 capture group</p></li>
+<li><p><strong>must</strong> have the group number in <strong>the first</strong> capture group and</p></li>
+<li><p><strong>must</strong> be something which captures a valid group number</p></li>
+</ul>
+</div></blockquote>
+<dl class="simple">
+<dt>These are all valid group regex strings:</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">project(\d+)_.*</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(?:project|assignment)(\d+)_.*</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(\d+)_.*</span></code></p></li>
+</ul>
+</dd>
+</dl>
 <p>The optional <strong>keyfile</strong>, used to aid extraction,
 is an alternative to using a group regex, but is not as efficient.</p>
 </section>
@@ -189,19 +219,30 @@ but using the menus ensures the file is correct.</p>
 <hr class="docutils" />
 <section id="phase-directory-setup">
 <h3>Phase directory setup<a class="headerlink" href="#phase-directory-setup" title="Link to this heading">¶</a></h3>
-<p>One of the first things wich must be done is setting up the phase directory.
-This directory can be created in the extraction process,
-<em>extraction to an existing directory removes its contents</em>.</p>
+<p>One of the first things which must be done is setting up the phase directory.
+This directory can be created in the extraction process.</p>
+<div class="admonition caution">
+<p class="admonition-title">Caution</p>
+<p><em>extraction to an existing directory removes its contents</em></p>
+</div>
 <p>The phase directory contains each group’s submission in a subdirectory
-in the form <code class="docutils literal notranslate"><span class="pre">group_n</span></code>, where n is a non-negative integer.</p>
+in the form <code class="docutils literal notranslate"><span class="pre">group_n</span></code>, where n is a valid group number.</p>
 <p>A <code class="docutils literal notranslate"><span class="pre">phase</span> <span class="pre">zip</span></code> can be chosen to extract to the selected <code class="docutils literal notranslate"><span class="pre">phase</span> <span class="pre">directory</span></code>.</p>
 <p>The extraction keyfile and group regex
 are used to associate group submission filenames with their group number.</p>
 <p><code class="docutils literal notranslate"><span class="pre">zip</span> <span class="pre">include</span></code> is a dictionary option which specifies filenames that we
 explicitly want in a specific location in the group directory,
-e.g., <code class="docutils literal notranslate"><span class="pre">&quot;README&quot;:&quot;&quot;</span></code> means to put <code class="docutils literal notranslate"><span class="pre">README</span></code> in the group’s root directory.</p>
-<p><code class="docutils literal notranslate"><span class="pre">zip</span> <span class="pre">exclude</span></code> is a list of files and directories to <strong>not</strong> extract.</p>
-<p>Both zip include and exclude are patterns compiled and used with <code class="docutils literal notranslate"><span class="pre">re.match</span></code>.</p>
+e.g., <code class="docutils literal notranslate"><span class="pre">&quot;README&quot;:&quot;&quot;</span></code> means to put <code class="docutils literal notranslate"><span class="pre">README</span></code> in the group’s root directory,
+and <code class="docutils literal notranslate"><span class="pre">&quot;driver.c&quot;:&quot;src/&quot;</span></code> means to put <code class="docutils literal notranslate"><span class="pre">driver.c</span></code> in <code class="docutils literal notranslate"><span class="pre">group_n/src/</span></code>.</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">zip</span> <span class="pre">exclude</span></code> is a list of files and directories to <strong>not</strong> extract.</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;.*\.o&quot;</span></code> – regex excludes object files</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;\..*&quot;</span></code> – regex excludes files beginning with a period</p></li>
+</ul>
+</dd>
+</dl>
+<p>Both zip include and exclude are patterns compiled and used with <code class="docutils literal notranslate"><span class="pre">re.match</span></code>,
+files and directory names are compared <strong>case-insensitive</strong> during extraction.</p>
 </section>
 <hr class="docutils" />
 <section id="group-options">
@@ -223,6 +264,10 @@ are the options to <code class="docutils literal notranslate"><span class="pre">
 </ul>
 </dd>
 </dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Performing a freeze will overwrite any previous freeze files</p>
+</div>
 <p>The purpose of freezing files is to later make a patch.</p>
 <p>If a submission requires modification to compile, or some other reason,
 a patch can be made to provide the group so that they can either</p>
@@ -237,10 +282,11 @@ a patch can be made to provide the group so that they can either</p>
 <h3>Making patches<a class="headerlink" href="#making-patches" title="Link to this heading">¶</a></h3>
 <dl class="simple">
 <dt>Unlike with the “freeze” operation, this doesn’t require a regex:</dt><dd><ol class="arabic simple">
-<li><p>the “frozen” text file is read,</p></li>
+<li><p>the “frozen” text file is read</p></li>
+<li><p>files which no longer exist are ignored</p></li>
 <li><p>the hashes for files listed are compared with their stored hash</p></li>
 <li><p>when hashes differ a patch is created and placed next to the original</p></li>
-<li><p>a listing of patches made is shown (or that no files were modified)</p></li>
+<li><p>a listing of patches made is shown (or that none were created)</p></li>
 </ol>
 </dd>
 </dl>
@@ -309,11 +355,12 @@ using <code class="docutils literal notranslate"><span class="pre">re.match</spa
 <p>That is, lines start with a valid group number,
 optionally followed by a comma and some series of text before a trailing colon,
 finally, the key to search for in the filename is after the final colon.</p>
-<p>For example, with</p>
+<p>For example, with either</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">42</span><span class="p">,</span><span class="n">Group</span> <span class="n">leader</span><span class="p">:</span> <span class="n">A</span> <span class="n">name</span><span class="p">,</span> <span class="n">Members</span><span class="p">:</span> <span class="n">Another</span> <span class="n">name</span><span class="p">:</span><span class="n">groupname</span>
+<span class="mi">42</span><span class="p">:</span><span class="n">othername</span>
 </pre></div>
 </div>
-<p>if <strong>groupname</strong> exists within the filename
+<p>if either <strong>groupname</strong> or <strong>othername</strong> exists within the filename
 then the group number will be inferred to be <strong>42</strong>.</p>
 <p>All regex matches performed during extraction are all <strong>case-insensitive</strong>.
 <em>Regexes</em> in a keyfile <strong>must be unique</strong>, <em>group numbers</em> <strong>need not be</strong>.</p>
@@ -349,9 +396,8 @@ List of files excluded</p></li>
 </dl>
 <p><strong>Extracting individual zip files</strong></p>
 <p>The submissions zip is extracted to a temporary directory.</p>
-<p>We examine the zip memberlist against exclude patterns,
-and do not extract files which match (case-insensitive)
-an exclude pattern.</p>
+<p>For each group’s zip, we examine the zip memberlist against exclude patterns
+and do not extract files which match (case-insensitive) an exclude pattern.</p>
 <p>For files we want at a specific location,
 these can be specified in the include pattern map:</p>
 <blockquote>
@@ -362,18 +408,17 @@ these can be specified in the include pattern map:</p>
 </div></blockquote>
 <div class="admonition hint">
 <p class="admonition-title">Hint</p>
-<p>include={‘Makefile’,’’,’driver.c’,’src}
+<p>include={‘Makefile’,’’,’driver.c’,’src’}
 Will put Makefile in the group’s root directory and driver.c in src/</p>
 </div>
-<p>We
-exclude (and print a warning) any symlinks within the archive. We
-extract the contents of the zip to a new temporary directory. We ensure
-all files are chmod 600 (<strong>owner rw</strong>), and all directories are chmod
-700 (<strong>owner rwx</strong>).</p>
+<p>We exclude (and print a warning) any symlinks within the archive.
+We extract the contents of the zip to a new temporary directory.
+We ensure all files are chmod 600 (<strong>owner rw</strong>),
+and all directories are chmod 700 (<strong>owner rwx</strong>).</p>
 <p>We move all files to the final extraction directory,
 we remove any special characters from file/directory names,
-and spaces are converted to underscores.
-We put the original zip in the group’s directory.
+and convert spaces to underscores.
+We put the save the original zip in the group’s directory.
 A text file, <code class="docutils literal notranslate"><span class="pre">./sub.nfo</span></code>,
 will contain the zip filename,
 original content list with sizes (compressed/decompressed),
