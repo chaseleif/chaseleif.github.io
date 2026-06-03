@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>cstester.tester &#8212; CSTester 2.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=27fed22d" />
+    <script src="../../_static/documentation_options.js?v=60dbed4a"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for cstester.tester</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">curses</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span><span class="o">,</span><span class="w"> </span><span class="nn">re</span><span class="o">,</span><span class="w"> </span><span class="nn">shlex</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span><span class="o">,</span><span class="w"> </span><span class="nn">subprocess</span><span class="o">,</span><span class="w"> </span><span class="nn">sys</span><span class="o">,</span><span class="w"> </span><span class="nn">yaml</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">difflib</span><span class="w"> </span><span class="kn">import</span> <span class="n">unified_diff</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">inspect</span><span class="w"> </span><span class="kn">import</span> <span class="n">getdoc</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">types</span><span class="w"> </span><span class="kn">import</span> <span class="n">TracebackType</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">Tuple</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">zipfile</span><span class="w"> </span><span class="kn">import</span> <span class="n">ZipFile</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.win</span><span class="w"> </span><span class="kn">import</span> <span class="n">CursesScreen</span><span class="p">,</span> <span class="n">WinOpt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.configmgr</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConfigManager</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.extractor</span><span class="w"> </span><span class="kn">import</span> <span class="n">Extractor</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">getfilehash</span><span class="p">,</span> <span class="n">expandnumrange</span><span class="p">,</span> <span class="n">runprocess</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Copyright (C) 2026  Chase Phelps</span>
+
+<span class="sd">    This program is free software: you can redistribute it and/or modify</span>
+<span class="sd">    it under the terms of the GNU General Public License as published by</span>
+<span class="sd">    the Free Software Foundation, either version 3 of the License, or</span>
+<span class="sd">    (at your option) any later version.</span>
+
+<span class="sd">    This program is distributed in the hope that it will be useful,</span>
+<span class="sd">    but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="sd">    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="sd">    GNU General Public License for more details.</span>
+
+<span class="sd">    You should have received a copy of the GNU General Public License</span>
+<span class="sd">    along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="CSTester">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CSTester</span><span class="p">:</span>
+<span class="w">  </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">  Main class to drive testing Computer Science submissions</span>
+<span class="sd">  &#39;&#39;&#39;</span>
+<div class="viewcode-block" id="CSTester.__init__">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.__init__">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">argv</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Initialize the CSTester instance</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      argv (Optional[List[str]]): Optional command-line arguments</span>
+
+<span class="sd">    If arguments are given, we expect **argv[1]** to be a configuration file</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="c1">#: The active :py:class:`.CursesScreen` object</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span> <span class="o">=</span> <span class="n">CursesScreen</span><span class="p">()</span>
+    <span class="c1">#: The actual name of this class</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span>
+    <span class="c1">#: An instance of :py:class:`.ConfigManager`,</span>
+    <span class="c1">#: this class provides an abstraction of :py:class:`.CSTesterConfig`</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span> <span class="o">=</span> <span class="n">ConfigManager</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="p">)</span> <span class="k">if</span> <span class="n">argv</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span> \
+          <span class="k">else</span> <span class="n">ConfigManager</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="p">,</span> <span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span></div>
+
+
+  <span class="k">def</span><span class="w"> </span><span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;CSTester&#39;</span><span class="p">:</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">initscr</span><span class="p">()</span>
+    <span class="k">return</span> <span class="bp">self</span>
+
+  <span class="k">def</span><span class="w"> </span><span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+              <span class="nb">type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="ne">BaseException</span><span class="p">]],</span>
+              <span class="n">value</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="ne">BaseException</span><span class="p">],</span>
+              <span class="n">traceback</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TracebackType</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]:</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span> <span class="o">=</span> <span class="kc">None</span>
+
+  <span class="k">def</span><span class="w"> </span><span class="fm">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="CSTester.refreshallgroups">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.refreshallgroups">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">refreshallgroups</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                        <span class="n">extracted</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Refresh the group numrange strings for all groups in the phase directory</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      title (str): Display title used while refreshing</span>
+<span class="sd">      extracted (bool, Optional): If True don&#39;t check whether groups changed</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">phasedir</span><span class="p">):</span>
+      <span class="k">return</span>
+    <span class="n">allgroups</span> <span class="o">=</span> <span class="p">[</span><span class="n">name</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">phasedir</span><span class="p">)</span> <span class="k">if</span> \
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">phasedir</span><span class="p">,</span><span class="n">name</span><span class="p">))</span> <span class="ow">and</span> \
+                <span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;group_&#39;</span><span class="p">)]</span>
+    <span class="n">allgroups</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([</span><span class="nb">int</span><span class="p">(</span><span class="n">group</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">allgroups</span><span class="p">])</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">allgroups</span><span class="p">)</span>
+    <span class="n">allgroups</span> <span class="o">=</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">group</span><span class="p">)</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">allgroups</span><span class="p">])</span>
+    <span class="n">allgroups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">verifiednumrange</span><span class="p">(</span><span class="n">allgroups</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">extracted</span> <span class="ow">and</span> <span class="n">allgroups</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">allgroups</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+        <span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNANY</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+        <span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Found </span><span class="si">{</span><span class="n">count</span><span class="si">}</span><span class="s1"> groups&#39;</span><span class="p">],</span>
+        <span class="n">err</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Group list already up-to-date&#39;</span><span class="p">],</span>
+      <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;allgroups&#39;</span><span class="p">,</span> <span class="n">allgroups</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+        <span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNANY</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+        <span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Group list updated&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;Found </span><span class="si">{</span><span class="n">count</span><span class="si">}</span><span class="s1"> groups&#39;</span><span class="p">],</span>
+      <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTester.getgrouplists">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.getgrouplists">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">getgrouplists</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Return included, excluded, and all group lists (expanded)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Tuple[List[str], List[str], List[str]]: (included, excluded, allgroups)</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">expandnumrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">include</span><span class="p">),</span>
+            <span class="n">expandnumrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">exclude</span><span class="p">),</span>
+            <span class="n">expandnumrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">allgroups</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="CSTester.getfilteredgroups">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.getfilteredgroups">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">getfilteredgroups</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Return the filtered list of groups after applying include/exclude rules</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      List[str]: Filtered group identifiers as strings</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">included</span><span class="p">,</span> <span class="n">excluded</span><span class="p">,</span> <span class="n">groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getgrouplists</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">included</span><span class="p">:</span>
+      <span class="n">groups</span> <span class="o">=</span> <span class="p">[</span><span class="n">group</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">groups</span> <span class="k">if</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">included</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">excluded</span><span class="p">:</span>
+      <span class="n">groups</span> <span class="o">=</span> <span class="p">[</span><span class="n">group</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">groups</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">excluded</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">groups</span></div>
+
+
+<div class="viewcode-block" id="CSTester.makeclean">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.makeclean">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">makeclean</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Remove files matching the configured clean patterns within group directories</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getfilteredgroups</span><span class="p">()</span>
+    <span class="n">patterns</span> <span class="o">=</span> <span class="p">[</span><span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">cleanfiles</span><span class="p">]</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
+      <span class="n">groupdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">phasedir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;group_</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">groupdir</span><span class="p">):</span>
+        <span class="k">continue</span>
+      <span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">groupdir</span><span class="p">,</span> <span class="n">topdown</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+          <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">file</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">patterns</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">file</span><span class="p">))</span>
+            <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+      <span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNANY</span><span class="p">,</span>
+      <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Make clean&#39;</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Deleted </span><span class="si">{</span><span class="n">count</span><span class="si">}</span><span class="s1"> files&#39;</span><span class="p">],</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTester.help_runtests">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.help_runtests">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">help_runtests</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Display an informational window describing the runtests view</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+      <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">TEXTBOX</span><span class="p">,</span>
+      <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s1"> Help&#39;</span><span class="p">,</span>
+      <span class="n">choices</span><span class="o">=</span><span class="n">getdoc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">runtests</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTester.runtests">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.runtests">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">runtests</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Run tests for each group using the configured test command</span>
+
+<span class="sd">    Failures are collected and reported</span>
+
+<span class="sd">    Navigation and control commands available:</span>
+<span class="sd">      - Previous group: a A b B</span>
+<span class="sd">      - Next group: d D n N</span>
+<span class="sd">      - Continue in direction: &lt;SPACE&gt;</span>
+<span class="sd">      - Quit: &lt;ESC&gt;</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> - Run Tests&#39;</span>
+    <span class="n">opts</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;runall&#39;</span><span class="p">:</span> <span class="s1">&#39;Run all tests&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;runsub&#39;</span><span class="p">:</span> <span class="s1">&#39;Run test subset&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;modsub&#39;</span><span class="p">:</span> <span class="s1">&#39;Modify test subset&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;return&#39;</span><span class="p">:</span> <span class="s1">&#39;Return to evaluation menu&#39;</span><span class="p">,</span>
+            <span class="p">}</span>
+    <span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+    <span class="n">choices</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+    <span class="n">exitkeys</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;d&#39;</span><span class="p">,</span> <span class="s1">&#39;D&#39;</span><span class="p">,</span> <span class="s1">&#39;n&#39;</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="p">)</span> <span class="o">+</span> <span class="n">CursesScreen</span><span class="o">.</span><span class="n">returnkeys</span>
+    <span class="n">helpstr</span> <span class="o">=</span> <span class="s1">&#39;Previous: [aAbB], Next: [dDnN] Continue: [ ], Help: [?hH]&#39;</span>
+    <span class="n">cases</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">case</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">case</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">cases</span><span class="p">]</span>
+    <span class="n">cases</span> <span class="o">=</span> <span class="p">{</span><span class="n">case</span> <span class="p">:</span>
+              <span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">casedir</span><span class="p">,</span> <span class="n">case</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">caseext</span><span class="p">),</span>
+                <span class="p">(</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">expdir</span><span class="p">,</span> <span class="n">case</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">expext</span><span class="p">)</span> \
+                <span class="k">if</span> <span class="n">case</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">expext</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">exps</span> \
+                <span class="k">else</span> <span class="kc">None</span> <span class="p">)</span>
+              <span class="p">)</span>
+              <span class="k">for</span> <span class="n">case</span> <span class="ow">in</span> <span class="n">cases</span>
+            <span class="p">}</span>
+    <span class="n">runcases</span> <span class="o">=</span> <span class="n">cases</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getdisabled</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
+      <span class="n">disabled</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">runcases</span><span class="p">:</span>
+        <span class="n">disabled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">keys</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;runsub&#39;</span><span class="p">))</span>
+      <span class="k">return</span> <span class="n">disabled</span>
+    <span class="n">groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getfilteredgroups</span><span class="p">()</span>
+    <span class="n">group</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="c1"># we only go left or right, start going right from group index 0</span>
+    <span class="n">right</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">readme</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">basecmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">testcmd</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="n">basecmd</span>
+    <span class="n">filename</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">hpos</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">group</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">groups</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span>
+      <span class="k">elif</span> <span class="n">group</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">groups</span><span class="p">):</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="n">groupdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">phasedir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;group_</span><span class="si">{</span><span class="n">groups</span><span class="p">[</span><span class="n">group</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">groupdir</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">right</span><span class="p">:</span>
+          <span class="n">group</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">group</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="k">continue</span>
+      <span class="n">_</span><span class="p">,</span> <span class="n">hpos</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+        <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNDEL</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">USEHELP</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+        <span class="n">disabled</span><span class="o">=</span><span class="n">getdisabled</span><span class="p">(),</span>
+        <span class="n">returnkeys</span><span class="o">=</span><span class="n">exitkeys</span><span class="p">,</span>
+        <span class="n">helpstr</span><span class="o">=</span><span class="n">helpstr</span><span class="p">,</span>
+        <span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Group </span><span class="si">{</span><span class="n">groups</span><span class="p">[</span><span class="n">group</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">],</span>
+        <span class="n">choices</span><span class="o">=</span><span class="n">choices</span><span class="p">,</span>
+        <span class="n">hpos</span><span class="o">=</span><span class="n">hpos</span><span class="p">,</span>
+      <span class="p">)</span>
+      <span class="k">if</span> <span class="n">c</span> <span class="o">==</span> <span class="s1">&#39;KEY_DC&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">hpos</span> <span class="o">==</span> <span class="n">keys</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;modsub&#39;</span><span class="p">):</span>
+          <span class="n">choices</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">values</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span><span class="si">}</span><span class="s1">: (unset)&#39;</span>
+        <span class="k">continue</span>
+      <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">CursesScreen</span><span class="o">.</span><span class="n">cancelkeys</span> <span class="ow">or</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;return&#39;</span><span class="p">:</span>
+        <span class="k">break</span>
+      <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span><span class="s1">&#39;A&#39;</span><span class="p">,</span><span class="s1">&#39;b&#39;</span><span class="p">,</span><span class="s1">&#39;B&#39;</span><span class="p">):</span>
+        <span class="n">right</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">group</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="k">continue</span>
+      <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;d&#39;</span><span class="p">,</span><span class="s1">&#39;D&#39;</span><span class="p">,</span><span class="s1">&#39;n&#39;</span><span class="p">,</span><span class="s1">&#39;N&#39;</span><span class="p">):</span>
+        <span class="n">right</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">group</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">continue</span>
+      <span class="k">if</span> <span class="n">c</span> <span class="o">==</span> <span class="s1">&#39; &#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">right</span><span class="p">:</span>
+          <span class="n">group</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">group</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="k">continue</span>
+      <span class="k">if</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;modsub&#39;</span><span class="p">:</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+          <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNMUL</span><span class="p">,</span>
+          <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+          <span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Select subset of cases to use:&#39;</span><span class="p">],</span>
+          <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Confirm selection&#39;</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">cases</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">CursesScreen</span><span class="o">.</span><span class="n">cancelkeys</span><span class="p">:</span>
+          <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">runcases</span> <span class="o">=</span> <span class="p">{</span><span class="n">case</span><span class="p">:</span><span class="n">cases</span><span class="p">[</span><span class="n">case</span><span class="p">]</span> <span class="k">for</span> <span class="n">case</span> <span class="ow">in</span> <span class="n">c</span><span class="p">}</span>
+          <span class="n">choices</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span>
+          <span class="k">if</span> <span class="ow">not</span> <span class="n">runcases</span><span class="p">:</span>
+            <span class="n">choices</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">+=</span> <span class="s1">&#39;: (unset)&#39;</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="n">choices</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">k</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">runcases</span><span class="o">.</span><span class="n">keys</span><span class="p">()])</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="k">continue</span>
+      <span class="k">if</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;runall&#39;</span><span class="p">:</span>
+        <span class="n">usecases</span> <span class="o">=</span> <span class="n">cases</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;runsub&#39;</span><span class="p">:</span>
+        <span class="n">usecases</span> <span class="o">=</span> <span class="n">runcases</span>
+      <span class="n">pwd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+      <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">groupdir</span><span class="p">)</span>
+      <span class="n">errors</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">for</span> <span class="n">case</span> <span class="ow">in</span> <span class="n">usecases</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s1">&#39;@case@&#39;</span> <span class="ow">in</span> <span class="n">basecmd</span><span class="p">:</span>
+          <span class="n">cmd</span> <span class="o">=</span> <span class="n">basecmd</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;@case@&#39;</span><span class="p">,</span> <span class="n">cases</span><span class="p">[</span><span class="n">case</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">filename</span> <span class="o">=</span> <span class="n">cases</span><span class="p">[</span><span class="n">case</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">out</span><span class="p">,</span> <span class="n">err</span><span class="p">,</span> <span class="n">ret</span> <span class="o">=</span> <span class="n">runprocess</span><span class="p">(</span><span class="n">cmd</span><span class="o">=</span><span class="n">shlex</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cmd</span><span class="p">),</span> <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">)</span>
+        <span class="c1"># bad exit, accumulate errors</span>
+        <span class="k">if</span> <span class="n">ret</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="k">if</span> <span class="n">errors</span><span class="p">:</span>
+            <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+          <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Test </span><span class="si">{</span><span class="n">case</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+          <span class="k">if</span> <span class="n">out</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;stdout:&#39;</span><span class="p">)</span>
+            <span class="n">errors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">))</span>
+            <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;stderr:&#39;</span><span class="p">)</span>
+          <span class="n">errors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">))</span>
+        <span class="c1"># normal exit but no expected output</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="k">if</span> <span class="n">cases</span><span class="p">[</span><span class="n">case</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># lhs will be test input</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">cases</span><span class="p">[</span><span class="n">case</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+              <span class="n">lhs</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">infile</span><span class="o">.</span><span class="n">readlines</span><span class="p">()]</span>
+            <span class="n">ltitle</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">case</span><span class="si">}</span><span class="s1"> input&#39;</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># lhs will be expected output</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">cases</span><span class="p">[</span><span class="n">case</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+              <span class="n">lhs</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">infile</span><span class="o">.</span><span class="n">readlines</span><span class="p">()]</span>
+            <span class="n">ltitle</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">case</span><span class="si">}</span><span class="s1"> expected output&#39;</span>
+          <span class="c1"># rhs is actual output</span>
+          <span class="n">rtitle</span> <span class="o">=</span> <span class="s1">&#39;actual output&#39;</span>
+          <span class="n">rhs</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">err</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)]</span> <span class="o">+</span> \
+                <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)]</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">diffwindow</span><span class="p">((</span><span class="n">title</span><span class="p">,</span> <span class="n">ltitle</span><span class="p">,</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">rtitle</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
+      <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">pwd</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">errors</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+          <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">TEXTBOX</span><span class="p">,</span>
+          <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s1">: Group </span><span class="si">{</span><span class="n">groups</span><span class="p">[</span><span class="n">group</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="n">choices</span><span class="o">=</span><span class="n">errors</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTester.runsearch">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.runsearch">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">runsearch</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Search for configured string patterns within files (visual grep)</span>
+
+<span class="sd">    Uses ``searchstrs`` and ``searchfiles`` from :py:attr:`.cfg`</span>
+<span class="sd">    to select files and patterns;</span>
+<span class="sd">    files are scanned line-by-line as text for search patterns</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> - Run Search Strings&#39;</span>
+    <span class="n">pwd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+    <span class="n">groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getfilteredgroups</span><span class="p">()</span>
+    <span class="n">ngroups</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">groups</span><span class="p">)</span>
+    <span class="n">nmatches</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">body</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">strpatterns</span> <span class="o">=</span> <span class="p">[</span><span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">searchstrs</span><span class="p">]</span>
+    <span class="n">filepatterns</span> <span class="o">=</span> <span class="p">[</span><span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">searchfiles</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">group</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">groups</span><span class="p">):</span>
+      <span class="n">groupdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">phasedir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;group_</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">groupdir</span><span class="p">):</span>
+        <span class="k">continue</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">statuswindow</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1"> of </span><span class="si">{</span><span class="n">ngroups</span><span class="si">}</span><span class="s1"> complete&#39;</span><span class="p">,</span> <span class="n">body</span><span class="p">)</span>
+      <span class="n">groupmatches</span> <span class="o">=</span> <span class="kc">False</span>
+      <span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">groupdir</span><span class="p">,</span> <span class="n">topdown</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+          <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">file</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">filepatterns</span><span class="p">):</span>
+            <span class="k">continue</span>
+          <span class="n">file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">file</span><span class="p">)</span>
+          <span class="n">matches</span> <span class="o">=</span> <span class="p">{}</span>
+          <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">linenum</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">infile</span><span class="o">.</span><span class="n">readlines</span><span class="p">()):</span>
+              <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
+              <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">line</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">strpatterns</span><span class="p">):</span>
+                <span class="n">matches</span><span class="p">[</span><span class="n">linenum</span><span class="p">]</span> <span class="o">=</span> <span class="n">line</span>
+                <span class="n">nmatches</span> <span class="o">+=</span> <span class="mi">1</span>
+          <span class="k">if</span> <span class="n">matches</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">body</span><span class="p">:</span>
+              <span class="n">body</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">groupmatches</span><span class="p">:</span>
+              <span class="n">body</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Group </span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s1">:&#39;</span><span class="p">)</span>
+              <span class="n">groupmatches</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">body</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">removeprefix</span><span class="p">(</span><span class="n">groupdir</span><span class="p">)</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">match</span> <span class="ow">in</span> <span class="n">matches</span><span class="p">:</span>
+              <span class="n">body</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">match</span><span class="o">+</span><span class="mi">1</span><span class="si">:</span><span class="s1">3d</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">matches</span><span class="p">[</span><span class="n">match</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">statuswindow</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;Group </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1"> of </span><span class="si">{</span><span class="n">ngroups</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">body</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">clearkeys</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">body</span><span class="p">:</span>
+      <span class="n">body</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Matches found:&#39;</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">body</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+        <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">TEXTBOX</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+        <span class="n">choices</span><span class="o">=</span><span class="n">body</span><span class="p">,</span>
+        <span class="n">footer</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">nmatches</span><span class="si">}</span><span class="s1"> matches&#39;</span><span class="p">,</span>
+      <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTester.runpreparation">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.runpreparation">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">runpreparation</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Run a sequence of preparation commands in each group directory</span>
+
+<span class="sd">    Commands run in order, on failure subsequent commands are skipped</span>
+
+<span class="sd">    Failures are collected and reported</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> - Run Preparation&#39;</span>
+    <span class="n">pwd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+    <span class="n">groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getfilteredgroups</span><span class="p">()</span>
+    <span class="n">ngroups</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">groups</span><span class="p">)</span>
+    <span class="n">body</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">group</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">groups</span><span class="p">):</span>
+      <span class="n">groupdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">phasedir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;group_</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">groupdir</span><span class="p">):</span>
+        <span class="k">continue</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">statuswindow</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1"> of </span><span class="si">{</span><span class="n">ngroups</span><span class="si">}</span><span class="s1"> complete&#39;</span><span class="p">,</span> <span class="n">body</span><span class="p">)</span>
+      <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">groupdir</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">prepcmds</span><span class="p">):</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="n">shlex</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">err</span><span class="p">,</span> <span class="n">ret</span> <span class="o">=</span> <span class="n">runprocess</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">getout</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ret</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">body</span><span class="p">:</span>
+          <span class="n">body</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="n">body</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;Group </span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s1">:&#39;</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">shlex</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">])</span>
+        <span class="n">body</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">e</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">err</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">!=</span> <span class="s1">&#39;&#39;</span><span class="p">])</span>
+        <span class="k">break</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">pwd</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">clearkeys</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">body</span><span class="p">:</span>
+      <span class="n">body</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Commands:&#39;</span><span class="p">]</span> <span class="o">+</span> \
+            <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">cmd</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">cmd</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">prepcmds</span><span class="p">)]</span> <span class="o">+</span> \
+            <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">]</span> <span class="o">+</span> \
+            <span class="n">body</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+        <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">TEXTBOX</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+        <span class="n">choices</span><span class="o">=</span><span class="n">body</span><span class="p">,</span>
+        <span class="n">footer</span><span class="o">=</span><span class="s1">&#39;Preparation failures&#39;</span><span class="p">,</span>
+      <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTester.help_lessreadmes">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.help_lessreadmes">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">help_lessreadmes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Display an informational window describing the lessreadmes view</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+      <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">TEXTBOX</span><span class="p">,</span>
+      <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s1"> Help&#39;</span><span class="p">,</span>
+      <span class="n">choices</span><span class="o">=</span><span class="n">getdoc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lessreadmes</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTester.lessreadmes">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.lessreadmes">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">lessreadmes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Display README files from each group directory</span>
+
+<span class="sd">    Navigation and control Commands available:</span>
+<span class="sd">      - Previous group: a A b B</span>
+<span class="sd">      - Next group: d D n N</span>
+<span class="sd">      - Continue in direction: &lt;SPACE&gt;</span>
+<span class="sd">      - Quit: &lt;ESC&gt;</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> - Read READMEs&#39;</span>
+    <span class="n">exitkeys</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;d&#39;</span><span class="p">,</span> <span class="s1">&#39;D&#39;</span><span class="p">,</span> <span class="s1">&#39;n&#39;</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="p">)</span> <span class="o">+</span> <span class="n">CursesScreen</span><span class="o">.</span><span class="n">returnkeys</span>
+    <span class="n">helpstr</span> <span class="o">=</span> <span class="s1">&#39;Previous: [aAbB], Next: [dDnN] Continue: [ ], Help: [?hH]&#39;</span>
+    <span class="n">groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getfilteredgroups</span><span class="p">()</span>
+    <span class="n">group</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="c1"># we only go left or right, start going right from group index 0</span>
+    <span class="n">right</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">readmename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">readmename</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">group</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">groups</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span>
+      <span class="k">elif</span> <span class="n">group</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">groups</span><span class="p">):</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="n">groupdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">phasedir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;group_</span><span class="si">{</span><span class="n">groups</span><span class="p">[</span><span class="n">group</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+      <span class="n">readme</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">groupdir</span><span class="p">,</span> <span class="n">readmename</span><span class="p">)</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">readme</span><span class="p">):</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+          <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">USEHELP</span><span class="p">,</span>
+          <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s1">: Group </span><span class="si">{</span><span class="n">groups</span><span class="p">[</span><span class="n">group</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="n">err</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Group </span><span class="si">{</span><span class="n">groups</span><span class="p">[</span><span class="n">group</span><span class="p">]</span><span class="si">}</span><span class="s1">: missing </span><span class="si">{</span><span class="n">readmename</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">],</span>
+          <span class="n">helpstr</span><span class="o">=</span><span class="n">helpstr</span><span class="p">,</span>
+          <span class="n">returnkeys</span><span class="o">=</span><span class="n">exitkeys</span><span class="p">,</span>
+        <span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">readme</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+          <span class="n">body</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">infile</span><span class="o">.</span><span class="n">readlines</span><span class="p">()]</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+          <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">TEXTBOX</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">USEHELP</span><span class="p">,</span>
+          <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s1">: Group </span><span class="si">{</span><span class="n">groups</span><span class="p">[</span><span class="n">group</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="n">choices</span><span class="o">=</span><span class="n">body</span><span class="p">,</span>
+          <span class="n">helpstr</span><span class="o">=</span><span class="n">helpstr</span><span class="p">,</span>
+          <span class="n">returnkeys</span><span class="o">=</span><span class="n">exitkeys</span><span class="p">,</span>
+        <span class="p">)</span>
+      <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">CursesScreen</span><span class="o">.</span><span class="n">cancelkeys</span><span class="p">:</span>
+        <span class="k">break</span>
+      <span class="k">elif</span> <span class="n">c</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">):</span>
+        <span class="n">group</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="n">right</span> <span class="o">=</span> <span class="kc">False</span>
+      <span class="k">elif</span> <span class="n">c</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;d&#39;</span><span class="p">,</span> <span class="s1">&#39;D&#39;</span><span class="p">,</span> <span class="s1">&#39;n&#39;</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">):</span>
+        <span class="n">group</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">right</span> <span class="o">=</span> <span class="kc">True</span>
+      <span class="k">elif</span> <span class="n">c</span> <span class="o">==</span> <span class="s1">&#39; &#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">right</span><span class="p">:</span>
+          <span class="n">group</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">group</span> <span class="o">-=</span> <span class="mi">1</span></div>
+
+
+<div class="viewcode-block" id="CSTester.freezefiles">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.freezefiles">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">freezefiles</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Create a frozen snapshot of matching files</span>
+
+<span class="sd">    Matching files are archived (zip) and their hashes stored,</span>
+<span class="sd">    performed before modifications can allow patch generation</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">hashfile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">phasedir</span><span class="p">,</span><span class="s1">&#39;frozen.hash&#39;</span><span class="p">)</span>
+    <span class="n">zipfile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">phasedir</span><span class="p">,</span><span class="s1">&#39;frozen.zip&#39;</span><span class="p">)</span>
+    <span class="n">hashes</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">patterns</span> <span class="o">=</span> <span class="p">[</span><span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">freezefiles</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">phasedir</span><span class="p">,</span> <span class="n">topdown</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">file</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">patterns</span><span class="p">):</span>
+          <span class="n">src</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">file</span><span class="p">)</span>
+          <span class="n">hashes</span><span class="p">[</span><span class="n">src</span><span class="p">]</span> <span class="o">=</span> <span class="n">getfilehash</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">hashes</span><span class="p">:</span>
+      <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">hashfile</span><span class="p">,</span><span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">hashfile</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">hashes</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+          <span class="n">hashfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+      <span class="k">with</span> <span class="n">ZipFile</span><span class="p">(</span><span class="n">zipfile</span><span class="p">,</span><span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">zipfile</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">src</span> <span class="ow">in</span> <span class="n">hashes</span><span class="p">:</span>
+          <span class="n">zipfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">hashfile</span><span class="p">):</span>
+      <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">hashfile</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+      <span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNANY</span><span class="p">,</span>
+      <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Freeze Files&#39;</span><span class="p">,</span>
+      <span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Created hashes for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">hashes</span><span class="p">)</span><span class="si">}</span><span class="s1"> files&#39;</span><span class="p">],</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">hashes</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span></div>
+
+
+<div class="viewcode-block" id="CSTester.mkpatches">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.mkpatches">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">mkpatches</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Detect modification of frozen files and generate diff patches</span>
+
+<span class="sd">    Patches can be applied with the ``patch`` command</span>
+<span class="sd">    or distributed to show changes, e.g., fixes required for compilation</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">hashfile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">phasedir</span><span class="p">,</span><span class="s1">&#39;frozen.hash&#39;</span><span class="p">)</span>
+    <span class="n">zipfile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">phasedir</span><span class="p">,</span><span class="s1">&#39;frozen.zip&#39;</span><span class="p">)</span>
+    <span class="c1"># the hashfile contents</span>
+    <span class="c1"># we will leave the original file as-is in the frozen.zip</span>
+    <span class="c1"># if we have modified files we will update the frozen hash though</span>
+    <span class="n">frozenhash</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="c1"># patch file list</span>
+    <span class="n">patches</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">hashfile</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+      <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">src</span> <span class="o">=</span> <span class="n">infile</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">src</span><span class="p">:</span>
+          <span class="k">break</span>
+        <span class="n">src</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
+        <span class="n">old</span> <span class="o">=</span> <span class="n">infile</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">src</span><span class="p">)</span> <span class="ow">or</span> <span class="n">old</span> <span class="o">==</span> <span class="n">getfilehash</span><span class="p">(</span><span class="n">src</span><span class="p">):</span>
+          <span class="k">continue</span>
+        <span class="c1"># get the original contents</span>
+        <span class="k">with</span> <span class="n">ZipFile</span><span class="p">(</span><span class="n">zipfile</span><span class="p">,</span><span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">zfile</span><span class="p">:</span>
+          <span class="n">zname</span> <span class="o">=</span> <span class="p">[</span><span class="n">z</span><span class="o">.</span><span class="n">filename</span> <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="n">zfile</span><span class="o">.</span><span class="n">infolist</span><span class="p">()</span> \
+                              <span class="k">if</span> <span class="n">src</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">z</span><span class="o">.</span><span class="n">filename</span><span class="p">)]</span>
+          <span class="k">if</span> <span class="ow">not</span> <span class="n">zname</span><span class="p">:</span>
+            <span class="k">continue</span>
+          <span class="n">old</span> <span class="o">=</span> <span class="n">zfile</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">zname</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">old</span> <span class="o">=</span> <span class="n">old</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="c1"># the new contents</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">new</span><span class="p">:</span>
+          <span class="n">new</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">new</span><span class="o">.</span><span class="n">readlines</span><span class="p">()]</span>
+        <span class="c1"># generate the patch</span>
+        <span class="n">patch</span> <span class="o">=</span> <span class="n">unified_diff</span><span class="p">(</span><span class="n">old</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span>
+                            <span class="n">fromfile</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;a/</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">src</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+                            <span class="n">tofile</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;b/</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">src</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">lineterm</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="n">src</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">src</span><span class="si">}</span><span class="s1">.patch&#39;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
+          <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">patch</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">patches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">removeprefix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">phasedir</span><span class="p">)</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">patches</span><span class="p">:</span>
+      <span class="n">footer</span> <span class="o">=</span> <span class="s1">&#39;Press enter to continue . . . &#39;</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+        <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">TEXTBOX</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Make patches&#39;</span><span class="p">,</span>
+        <span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Made </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">patches</span><span class="p">)</span><span class="si">}</span><span class="s1"> patches:&#39;</span><span class="p">],</span>
+        <span class="n">choices</span><span class="o">=</span><span class="n">patches</span><span class="p">,</span>
+        <span class="n">footer</span><span class="o">=</span><span class="n">footer</span><span class="p">,</span>
+      <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+        <span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNANY</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Make patches&#39;</span><span class="p">,</span>
+        <span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;No modified files found&#39;</span><span class="p">],</span>
+      <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTester.help_phasemenu">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.help_phasemenu">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">help_phasemenu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Display an informational window describing the phasemenu view</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+      <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">TEXTBOX</span><span class="p">,</span>
+      <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s1"> Help&#39;</span><span class="p">,</span>
+      <span class="n">choices</span><span class="o">=</span><span class="n">getdoc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phasemenu</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTester.phasemenu">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.phasemenu">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">phasemenu</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Menu to configure and setup the phase directory from a phase zip</span>
+
+<span class="sd">    The phase zip contains group submission zips</span>
+
+<span class="sd">    Options:</span>
+<span class="sd">      keyfile: optional mapping to associate zip-filename parts with groups</span>
+<span class="sd">      group regex: required pattern to extract group number</span>
+<span class="sd">      zip include/exclude patterns with target locations</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="c1"># the title for each window</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> - Phase Directory Menu&#39;</span>
+    <span class="c1"># the choices</span>
+    <span class="n">opts</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;extract&#39;</span><span class="p">:</span><span class="s1">&#39;Extract phasezip to Phase dir&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;phasedir&#39;</span><span class="p">:</span><span class="s1">&#39;Phase directory&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;phasezip&#39;</span><span class="p">:</span><span class="s1">&#39;Phase zip&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;keyfile&#39;</span><span class="p">:</span><span class="s1">&#39;Extraction Keyfile&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;groupre_str&#39;</span><span class="p">:</span><span class="s1">&#39;Group regex&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;zipinclude_strs&#39;</span><span class="p">:</span><span class="s1">&#39;Zip include&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;zipexclude_strs&#39;</span><span class="p">:</span><span class="s1">&#39;Zip exclude&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;return&#39;</span><span class="p">:</span><span class="s1">&#39;Return to main menu&#39;</span><span class="p">,</span>
+            <span class="p">}</span>
+    <span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getdisabled</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
+      <span class="n">disabled</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">isset</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span> <span class="k">for</span> <span class="n">attr</span> \
+                            <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;phasedir&#39;</span><span class="p">,</span><span class="s1">&#39;phasezip&#39;</span><span class="p">,</span><span class="s1">&#39;groupre_str&#39;</span><span class="p">)]):</span>
+        <span class="n">disabled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">keys</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;extract&#39;</span><span class="p">))</span>
+      <span class="k">return</span> <span class="n">disabled</span>
+    <span class="n">choices</span> <span class="o">=</span> <span class="p">[</span><span class="n">opts</span><span class="p">[</span><span class="n">o</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">o</span><span class="p">)</span> \
+                <span class="k">else</span> <span class="n">opts</span><span class="p">[</span><span class="n">o</span><span class="p">]</span><span class="o">+</span><span class="s1">&#39;: (unset)&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">isset</span><span class="p">(</span><span class="n">o</span><span class="p">)</span> \
+                <span class="k">else</span> <span class="n">opts</span><span class="p">[</span><span class="n">o</span><span class="p">]</span><span class="o">+</span><span class="sa">f</span><span class="s1">&#39;: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">o</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">opts</span><span class="p">]</span>
+    <span class="n">hpos</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">_</span><span class="p">,</span> <span class="n">hpos</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+        <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNDEL</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">USEHELP</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+        <span class="n">disabled</span><span class="o">=</span><span class="n">getdisabled</span><span class="p">(),</span>
+        <span class="n">choices</span><span class="o">=</span><span class="n">choices</span><span class="p">,</span>
+        <span class="n">hpos</span><span class="o">=</span><span class="n">hpos</span><span class="p">,</span>
+      <span class="p">)</span>
+      <span class="k">if</span> <span class="n">c</span> <span class="o">==</span> <span class="s1">&#39;KEY_DC&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">])</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">isset</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]):</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">resetattr</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">])</span>
+      <span class="c1"># allow to quit on escape, q, or Q:</span>
+      <span class="k">elif</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">CursesScreen</span><span class="o">.</span><span class="n">cancelkeys</span> <span class="ow">or</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;return&#39;</span><span class="p">:</span>
+        <span class="k">break</span>
+      <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">modifyconf</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">],</span> <span class="n">title</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;extract&#39;</span><span class="p">:</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">conf</span>
+        <span class="k">with</span> <span class="n">Extractor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="p">)</span> <span class="k">as</span> <span class="n">extractor</span><span class="p">:</span>
+          <span class="n">ret</span> <span class="o">=</span> <span class="n">extractor</span><span class="o">.</span><span class="n">extractphasezip</span><span class="p">(</span><span class="n">conf</span><span class="o">.</span><span class="n">phasedir</span><span class="p">,</span>
+                                          <span class="n">conf</span><span class="o">.</span><span class="n">phasezip</span><span class="p">,</span>
+                                          <span class="n">conf</span><span class="o">.</span><span class="n">keyfile</span><span class="p">,</span>
+                                          <span class="n">conf</span><span class="o">.</span><span class="n">groupre_str</span><span class="p">,</span>
+                                          <span class="n">conf</span><span class="o">.</span><span class="n">zipinclude_strs</span><span class="p">,</span>
+                                          <span class="n">conf</span><span class="o">.</span><span class="n">zipexclude_strs</span><span class="p">)</span>
+        <span class="c1"># -1 error, 0 success, 1 nothing done</span>
+        <span class="k">if</span> <span class="n">ret</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+            <span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNANY</span><span class="p">,</span>
+            <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+            <span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Phasezip extracted successfully&#39;</span><span class="p">],</span>
+          <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">ret</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+            <span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNANY</span><span class="p">,</span>
+            <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+            <span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Phasezip not extracted&#39;</span><span class="p">],</span>
+            <span class="n">err</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Error during extraction&#39;</span><span class="p">],</span>
+          <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+            <span class="n">WinOpt</span><span class="o">.</span><span class="n">SHOWCURS</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNANY</span><span class="p">,</span>
+            <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+            <span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Phasezip not extracted&#39;</span><span class="p">],</span>
+            <span class="n">err</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Extraction aborted&#39;</span><span class="p">],</span>
+          <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">refreshallgroups</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">extracted</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]):</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">])</span>
+        <span class="n">choices</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;: (unset)&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">v</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;: </span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTester.help_groupmenu">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.help_groupmenu">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">help_groupmenu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Display an informational window describing groupmenu&#39;s view</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+      <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">TEXTBOX</span><span class="p">,</span>
+      <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s1"> Help&#39;</span><span class="p">,</span>
+      <span class="n">choices</span><span class="o">=</span><span class="n">getdoc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">groupmenu</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTester.groupmenu">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.groupmenu">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">groupmenu</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Menu for managing group directories:</span>
+<span class="sd">    include/exclude groups, freeze files, create patches, and clean files.</span>
+
+<span class="sd">    Include/exclude lists use comma-separated numbers/ranges, e.g., 1,4-9</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="c1"># the title for each window</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> - Group Directories Menu&#39;</span>
+    <span class="c1"># the choices</span>
+    <span class="n">opts</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;refresh&#39;</span><span class="p">:</span><span class="s1">&#39;Refresh all groups list&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;chooseinc&#39;</span><span class="p">:</span><span class="s1">&#39;Select groups to only include&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;include&#39;</span><span class="p">:</span><span class="s1">&#39;Enter groups to only include&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;chooseexc&#39;</span><span class="p">:</span><span class="s1">&#39;Select groups to exclude&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;exclude&#39;</span><span class="p">:</span><span class="s1">&#39;Enter groups to exclude&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;freeze&#39;</span><span class="p">:</span><span class="s1">&#39;Freeze files&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;freezefiles&#39;</span><span class="p">:</span><span class="s1">&#39;Freeze file regexes&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;mkpatch&#39;</span><span class="p">:</span><span class="s1">&#39;Make patches for modifications since freeze&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;clean&#39;</span><span class="p">:</span><span class="s1">&#39;Clean files&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;cleanfiles&#39;</span><span class="p">:</span><span class="s1">&#39;Clean files regexes&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;return&#39;</span><span class="p">:</span><span class="s1">&#39;Return to main menu&#39;</span><span class="p">,</span>
+            <span class="p">}</span>
+    <span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getdisabled</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
+      <span class="n">disabled</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">isset</span><span class="p">(</span><span class="s1">&#39;freezefiles&#39;</span><span class="p">):</span>
+        <span class="n">disabled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">keys</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;freeze&#39;</span><span class="p">))</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">phasedir</span><span class="p">,</span><span class="s1">&#39;frozen.hash&#39;</span><span class="p">)):</span>
+        <span class="n">disabled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">keys</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;mkpatch&#39;</span><span class="p">))</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">isset</span><span class="p">(</span><span class="s1">&#39;cleanfiles&#39;</span><span class="p">):</span>
+        <span class="n">disabled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">keys</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;clean&#39;</span><span class="p">))</span>
+      <span class="k">return</span> <span class="n">disabled</span>
+    <span class="n">choices</span> <span class="o">=</span> <span class="p">[</span><span class="n">opts</span><span class="p">[</span><span class="n">o</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">o</span><span class="p">)</span> \
+                <span class="k">else</span> <span class="n">opts</span><span class="p">[</span><span class="n">o</span><span class="p">]</span><span class="o">+</span><span class="s1">&#39;: (unset)&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">isset</span><span class="p">(</span><span class="n">o</span><span class="p">)</span> \
+                <span class="k">else</span> <span class="n">opts</span><span class="p">[</span><span class="n">o</span><span class="p">]</span><span class="o">+</span><span class="sa">f</span><span class="s1">&#39;: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">o</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">opts</span><span class="p">]</span>
+    <span class="n">allgroups</span> <span class="o">=</span> <span class="n">expandnumrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">allgroups</span><span class="p">)</span>
+    <span class="n">hpos</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">_</span><span class="p">,</span> <span class="n">hpos</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+        <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNDEL</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">USEHELP</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+        <span class="n">disabled</span><span class="o">=</span><span class="n">getdisabled</span><span class="p">(),</span>
+        <span class="n">choices</span><span class="o">=</span><span class="n">choices</span><span class="p">,</span>
+        <span class="n">hpos</span><span class="o">=</span><span class="n">hpos</span><span class="p">,</span>
+      <span class="p">)</span>
+      <span class="k">if</span> <span class="n">c</span> <span class="o">==</span> <span class="s1">&#39;KEY_DC&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">])</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">isset</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]):</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">resetattr</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">])</span>
+      <span class="c1"># allow to quit on escape, q, or Q:</span>
+      <span class="k">elif</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">CursesScreen</span><span class="o">.</span><span class="n">cancelkeys</span> <span class="ow">or</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;return&#39;</span><span class="p">:</span>
+        <span class="k">break</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;refresh&#39;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">refreshallgroups</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">)</span>
+        <span class="n">allgroups</span> <span class="o">=</span> <span class="n">expandnumrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">allgroups</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">modifyconf</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">],</span> <span class="n">title</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;chooseinc&#39;</span><span class="p">,</span><span class="s1">&#39;chooseexc&#39;</span><span class="p">]:</span>
+        <span class="n">chosen</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">attr</span> <span class="o">=</span> <span class="s1">&#39;include&#39;</span> <span class="k">if</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;chooseinc&#39;</span> <span class="k">else</span> <span class="s1">&#39;exclude&#39;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">isset</span><span class="p">(</span><span class="n">attr</span><span class="p">):</span>
+          <span class="n">chosen</span> <span class="o">=</span> <span class="n">expandnumrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">attr</span><span class="p">))</span>
+          <span class="n">chosen</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Group </span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">chosen</span> <span class="k">if</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">allgroups</span><span class="p">]</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+          <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNMUL</span><span class="p">,</span>
+          <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+          <span class="n">chosen</span><span class="o">=</span><span class="n">chosen</span><span class="p">,</span>
+          <span class="n">body</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Select groups to </span><span class="si">{</span><span class="n">attr</span><span class="si">}</span><span class="s1">:&#39;</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">],</span>
+          <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Confirm selection&#39;</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">]</span> <span class="o">+</span> \
+          <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Group </span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">allgroups</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">groups</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+          <span class="n">groups</span> <span class="o">=</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">group</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">])</span>
+          <span class="n">groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">verifiednumrange</span><span class="p">(</span><span class="n">groups</span><span class="p">)</span>
+          <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">conf</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">groups</span><span class="p">)</span>
+          <span class="n">c</span> <span class="o">=</span> <span class="n">keys</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span>
+          <span class="n">choices</span><span class="p">[</span><span class="n">h</span><span class="p">]</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">h</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;: (unset)&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">groups</span> \
+                                                  <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;: </span><span class="si">{</span><span class="n">groups</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;freeze&#39;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">freezefiles</span><span class="p">()</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;mkpatch&#39;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mkpatches</span><span class="p">()</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;clean&#39;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">makeclean</span><span class="p">()</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]):</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">])</span>
+        <span class="n">choices</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;: (unset)&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">v</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;: </span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTester.help_evalmenu">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.help_evalmenu">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">help_evalmenu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Display an informational window describing the evalmenu view</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+      <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">TEXTBOX</span><span class="p">,</span>
+      <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s1"> Help&#39;</span><span class="p">,</span>
+      <span class="n">choices</span><span class="o">=</span><span class="n">getdoc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">evalmenu</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTester.evalmenu">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.evalmenu">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">evalmenu</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Menu for running evaluation tasks:</span>
+<span class="sd">    run tests, prepare, clean, search, and view READMEs</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> - Evaluation Menu&#39;</span>
+    <span class="n">opts</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;runtest&#39;</span><span class="p">:</span><span class="s1">&#39;Run tests&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;testcmd&#39;</span><span class="p">:</span><span class="s1">&#39;Test command&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;runprep&#39;</span><span class="p">:</span><span class="s1">&#39;Run prepare commands&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;prepcmds&#39;</span><span class="p">:</span><span class="s1">&#39;Preparation commands&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;makeclean&#39;</span><span class="p">:</span><span class="s1">&#39;Clean files&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;runsearch&#39;</span><span class="p">:</span><span class="s1">&#39;Run search strings in files&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;searchstrs&#39;</span><span class="p">:</span><span class="s1">&#39;Search string patterns&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;searchfiles&#39;</span><span class="p">:</span><span class="s1">&#39;Search files for strings&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;rdreadme&#39;</span><span class="p">:</span><span class="s1">&#39;Read readme files&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;readmename&#39;</span><span class="p">:</span><span class="s1">&#39;Set readme name&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;return&#39;</span><span class="p">:</span><span class="s1">&#39;Return to main menu&#39;</span><span class="p">,</span>
+            <span class="p">}</span>
+    <span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+    <span class="n">choices</span> <span class="o">=</span> <span class="p">[</span><span class="n">opts</span><span class="p">[</span><span class="n">o</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">o</span><span class="p">)</span> \
+                <span class="k">else</span> <span class="n">opts</span><span class="p">[</span><span class="n">o</span><span class="p">]</span><span class="o">+</span><span class="s1">&#39;: (unset)&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">isset</span><span class="p">(</span><span class="n">o</span><span class="p">)</span> \
+                <span class="k">else</span> <span class="n">opts</span><span class="p">[</span><span class="n">o</span><span class="p">]</span><span class="o">+</span><span class="sa">f</span><span class="s1">&#39;: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">o</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">opts</span><span class="p">]</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getdisabled</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
+      <span class="n">disabled</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">testcmd</span><span class="p">:</span>
+        <span class="n">disabled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">keys</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;runtest&#39;</span><span class="p">))</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">prepcmds</span><span class="p">:</span>
+        <span class="n">disabled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">keys</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;runprep&#39;</span><span class="p">))</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">cleanfiles</span><span class="p">:</span>
+        <span class="n">disabled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">keys</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;makeclean&#39;</span><span class="p">))</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">searchstrs</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">searchfiles</span><span class="p">:</span>
+        <span class="n">disabled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">keys</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;runsearch&#39;</span><span class="p">))</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">readmename</span><span class="p">:</span>
+        <span class="n">disabled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">keys</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;rdreadme&#39;</span><span class="p">))</span>
+      <span class="k">return</span> <span class="n">disabled</span>
+    <span class="n">hpos</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">_</span><span class="p">,</span> <span class="n">hpos</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+        <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">USEHELP</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+        <span class="n">disabled</span><span class="o">=</span><span class="n">getdisabled</span><span class="p">(),</span>
+        <span class="n">choices</span><span class="o">=</span><span class="n">choices</span><span class="p">,</span>
+        <span class="n">hpos</span><span class="o">=</span><span class="n">hpos</span><span class="p">,</span>
+      <span class="p">)</span>
+      <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">CursesScreen</span><span class="o">.</span><span class="n">cancelkeys</span> <span class="ow">or</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;return&#39;</span><span class="p">:</span>
+        <span class="k">return</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;runtest&#39;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">runtests</span><span class="p">()</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;runprep&#39;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">runpreparation</span><span class="p">()</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;makeclean&#39;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">makeclean</span><span class="p">()</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;runsearch&#39;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">runsearch</span><span class="p">()</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;rdreadme&#39;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lessreadmes</span><span class="p">()</span>
+      <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">modifyconf</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">],</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">)</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]):</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">])</span>
+        <span class="n">choices</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;: (unset)&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">v</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;: </span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTester.help_configure">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.help_configure">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">help_configure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Display an informational window describing the configure view</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+      <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">TEXTBOX</span><span class="p">,</span>
+      <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s1"> Help&#39;</span><span class="p">,</span>
+      <span class="n">choices</span><span class="o">=</span><span class="n">getdoc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">configure</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTester.configure">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.configure">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">configure</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Configuration menu to display and modify configuration values</span>
+
+<span class="sd">    Accepted value types include</span>
+<span class="sd">    strings,</span>
+<span class="sd">    directory or file paths,</span>
+<span class="sd">    lists,</span>
+<span class="sd">    and dicts.</span>
+
+<span class="sd">    Validation may include</span>
+<span class="sd">    regex compilation,</span>
+<span class="sd">    number/range parsing,</span>
+<span class="sd">    and command verification.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> - Configuration&#39;</span>
+    <span class="n">opts</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;phasedir&#39;</span><span class="p">:</span><span class="s1">&#39;Phase dir&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;casedir&#39;</span><span class="p">:</span><span class="s1">&#39;Cases dir&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;caseext&#39;</span><span class="p">:</span><span class="s1">&#39;Cases ext&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;expdir&#39;</span><span class="p">:</span><span class="s1">&#39;Exp dir&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;expext&#39;</span><span class="p">:</span><span class="s1">&#39;Exp ext&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;include&#39;</span><span class="p">:</span><span class="s1">&#39;Include only&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;exclude&#39;</span><span class="p">:</span><span class="s1">&#39;Exclude only&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;testcmd&#39;</span><span class="p">:</span><span class="s1">&#39;Testing command&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;phasezip&#39;</span><span class="p">:</span><span class="s1">&#39;Phase zip&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;keyfile&#39;</span><span class="p">:</span><span class="s1">&#39;Keyfile&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;groupre_str&#39;</span><span class="p">:</span><span class="s1">&#39;Regex to get group from group.zip&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;zipinclude_strs&#39;</span><span class="p">:</span><span class="s1">&#39;Regex dict of patterns to move&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;zipexclude_strs&#39;</span><span class="p">:</span><span class="s1">&#39;Regex list of patterns to exclude&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;return&#39;</span><span class="p">:</span><span class="s1">&#39;Return to main menu&#39;</span><span class="p">,</span>
+            <span class="p">}</span>
+    <span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+    <span class="n">choices</span> <span class="o">=</span> <span class="p">[</span><span class="n">opts</span><span class="p">[</span><span class="n">o</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">o</span><span class="p">)</span> \
+                <span class="k">else</span> <span class="n">opts</span><span class="p">[</span><span class="n">o</span><span class="p">]</span><span class="o">+</span><span class="s1">&#39;: (unset)&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">isset</span><span class="p">(</span><span class="n">o</span><span class="p">)</span> \
+                <span class="k">else</span> <span class="n">opts</span><span class="p">[</span><span class="n">o</span><span class="p">]</span><span class="o">+</span><span class="sa">f</span><span class="s1">&#39;: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">o</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">opts</span><span class="p">]</span>
+    <span class="n">hpos</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">_</span><span class="p">,</span> <span class="n">hpos</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+        <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNDEL</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">USEHELP</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+        <span class="n">choices</span><span class="o">=</span><span class="n">choices</span><span class="p">,</span>
+        <span class="n">hpos</span><span class="o">=</span><span class="n">hpos</span><span class="p">,</span>
+      <span class="p">)</span>
+      <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">CursesScreen</span><span class="o">.</span><span class="n">cancelkeys</span> <span class="ow">or</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;return&#39;</span><span class="p">:</span>
+        <span class="k">break</span>
+      <span class="k">elif</span> <span class="n">c</span> <span class="o">==</span> <span class="s1">&#39;KEY_DC&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">])</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">isset</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]):</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">resetattr</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">])</span>
+      <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">modifyconf</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">],</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">)</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]):</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">])</span>
+        <span class="n">choices</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;: (unset)&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">v</span> <span class="k">else</span> <span class="sa">f</span><span class="s1">&#39;: </span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTester.help_mainmenu">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.help_mainmenu">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">help_mainmenu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Display an informational window describing the mainmenu view</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+      <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">TEXTBOX</span><span class="p">,</span>
+      <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s1"> Help&#39;</span><span class="p">,</span>
+      <span class="n">choices</span><span class="o">=</span><span class="n">getdoc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mainmenu</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSTester.mainmenu">
+<a class="viewcode-back" href="../../cstester.html#cstester.tester.CSTester.mainmenu">[docs]</a>
+  <span class="k">def</span><span class="w"> </span><span class="nf">mainmenu</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Main menu entry point that links to phase, groups, evaluation,</span>
+<span class="sd">    and configuration submenues. Saving and Loading from YAML is supported</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="c1"># the title for each window</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> - Main Menu&#39;</span>
+    <span class="c1"># the choices</span>
+    <span class="n">opts</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;phase&#39;</span><span class="p">:</span><span class="s1">&#39;Phase directory setup&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;group&#39;</span><span class="p">:</span><span class="s1">&#39;Groups&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;eval&#39;</span><span class="p">:</span><span class="s1">&#39;Evaluation menu&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;config&#39;</span><span class="p">:</span><span class="s1">&#39;Edit/view Configuration&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;save&#39;</span><span class="p">:</span><span class="s1">&#39;Save current configuration&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;load&#39;</span><span class="p">:</span><span class="s1">&#39;Load a configuration&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;quit&#39;</span><span class="p">:</span><span class="s1">&#39;Quit&#39;</span><span class="p">,</span>
+            <span class="p">}</span>
+    <span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">opts</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">getdisabled</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
+      <span class="n">disabled</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">phasedir</span><span class="si">}</span><span class="s1">/x.log&#39;</span><span class="p">):</span>
+        <span class="n">disabled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">keys</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;group&#39;</span><span class="p">))</span>
+        <span class="n">disabled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">keys</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;eval&#39;</span><span class="p">))</span>
+      <span class="k">return</span> <span class="n">disabled</span>
+    <span class="n">choices</span> <span class="o">=</span> <span class="p">[</span><span class="n">opts</span><span class="p">[</span><span class="n">o</span><span class="p">]</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">opts</span><span class="p">]</span>
+    <span class="n">hpos</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">_</span><span class="p">,</span> <span class="n">hpos</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scr</span><span class="o">.</span><span class="n">window</span><span class="p">(</span>
+        <span class="n">WinOpt</span><span class="o">.</span><span class="n">RETURNKEY</span><span class="o">|</span><span class="n">WinOpt</span><span class="o">.</span><span class="n">USEHELP</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+        <span class="n">disabled</span><span class="o">=</span><span class="n">getdisabled</span><span class="p">(),</span>
+        <span class="n">choices</span><span class="o">=</span><span class="n">choices</span><span class="p">,</span>
+        <span class="n">hpos</span><span class="o">=</span><span class="n">hpos</span><span class="p">,</span>
+      <span class="p">)</span>
+      <span class="c1"># allow to quit on escape, q, or Q:</span>
+      <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">CursesScreen</span><span class="o">.</span><span class="n">cancelkeys</span> <span class="ow">or</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;quit&#39;</span><span class="p">:</span>
+        <span class="k">break</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;phase&#39;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">phasemenu</span><span class="p">()</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;group&#39;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">groupmenu</span><span class="p">()</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;eval&#39;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">evalmenu</span><span class="p">()</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;config&#39;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">configure</span><span class="p">()</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;save&#39;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+      <span class="k">elif</span> <span class="n">keys</span><span class="p">[</span><span class="n">hpos</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;load&#39;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">load</span><span class="p">()</span></div>
+</div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">CSTester</a></h1>
+
+
+
+<p class="blurb">Computer Science programming submission testing tool</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=chaseleif&repo=cstester&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#installation">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#commands">Commands</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#terminology">Terminology</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#input-validation">Input validation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#cstester-usage">CSTester usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#configuration-options">Configuration options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#extraction">Extraction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../cstester.html">CSTester API</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, Chase Phelps.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
